@@ -1741,8 +1741,9 @@ html.skin-studio .stage-area{position:relative}
 html:not(.tablet).skin-studio .dock{
   position:absolute;left:50%;transform:translateX(-50%);bottom:14px;z-index:8;margin:0;
   border-radius:var(--r-pill);padding:5px 8px;
-  background:rgba(255,255,255,.94);border:none;
-  box-shadow:0 2px 6px rgba(16,16,20,.06),0 10px 24px rgba(16,16,20,.10);
+  background:rgba(16,22,36,.55);border:1px solid rgba(242,244,248,.10);
+  box-shadow:0 12px 32px rgba(0,0,0,.35);
+  backdrop-filter:blur(28px) saturate(150%);-webkit-backdrop-filter:blur(28px) saturate(150%);
 }
 /* v184：窄窗口工具坞不再折成两行挤在胶囊里 —— 单行横向滑动（隐藏滚动条） */
 @media (max-width:1280px){
@@ -2052,7 +2053,7 @@ html.skin-studio .stage-area{
              0 10px 32px rgba(0,0,0,.30);
 }
 /* 画布本体保持白色（图纸白底不动），画布外的台面是暗玻璃 */
-html.skin-studio .canvas-stack{background:rgba(253,253,253,.40);border-radius:12px;overflow:hidden;box-shadow:0 0 0 8px rgba(242,244,248,.07),0 14px 36px rgba(0,0,0,.45)}
+html.skin-studio .canvas-stack{background:rgba(253,253,253,.40);border-radius:12px;overflow:hidden;box-shadow:none;border:1px solid rgba(242,244,248,.10)}
 /* 信息组：竖线分隔改白色系 */
 html.skin-studio .hd-sub .hd-item{border-left:1px solid rgba(242,244,248,.18)}
 html.skin-studio .tb-info .hd-item.tb-label{font-weight:400;color:rgba(242,244,248,.55)}
@@ -2188,17 +2189,7 @@ html.skin-studio .dock-tools .tool{flex:0 0 auto;white-space:nowrap}
    v331 · iPad（tablet）暗色覆盖 —— html.tablet 前缀的亮色规则特异性更高，
    必须用 html.tablet.skin-studio 前缀反压（与桌面暗色覆盖同一套语言）
    ========================================================= */
-/* ★ 变量反转（tablet 作用域）—— 所有 var(--panel)/var(--bg)/var(--ink) 的元素自动变暗 */
-html.tablet.skin-studio{
-  --panel:rgba(18,24,38,.46); --bg:rgba(10,14,24,.35);
-  --ink:#F2F4F8; --ink2:rgba(242,244,248,.78); --ink3:rgba(242,244,248,.68); --ink4:rgba(242,244,248,.38);
-  --line:rgba(242,244,248,.14); --line2:rgba(242,244,248,.20);
-  --hover:rgba(255,255,255,.10); --fill-recess:rgba(242,244,248,.06);
-  --glass:rgba(18,24,38,.46); --float:rgba(22,28,44,.94); --solid:#141A26;
-  --fill:rgba(242,244,248,.08); --fill-strong:rgba(242,244,248,.16);
-  --sel-bg:rgba(242,244,248,.18); --sel-fg:#F2F4F8; --ring:rgba(242,244,248,.6);
-  --warn:#F0A860; --danger:#F07060;
-}
+
 /* 面板卡（左栏画布尺寸/参考图/图纸优化） */
 html.tablet.skin-studio .card{background:rgba(18,24,38,.46);border-color:rgba(242,244,248,.12)}
 html.tablet.skin-studio .panel.left .card,html.tablet.skin-studio .drawer-card{background:rgba(18,24,38,.46)}
@@ -2225,9 +2216,9 @@ html.tablet.skin-studio .pad-zoom .pad-zfit:hover{background:rgba(242,244,248,.1
 html.tablet.skin-studio .layer-panel .lp-list .lp-add{background:rgba(242,244,248,.12);color:#F2F4F8;border-color:rgba(242,244,248,.18)}
 html.tablet.skin-studio .layer-panel .lp-list .lp-add:hover{background:rgba(242,244,248,.22);border-color:rgba(242,244,248,.28);color:#F2F4F8}
 /* 尺寸输入聚焦 */
-html.tablet.skin-studio .panel.left .dim-field{background:rgba(10,14,24,.35)}
+html.tablet.skin-studio .panel.left .dim-field{background:rgba(242,244,248,.06)}
 html.skin-studio .panel.left .dim-field input{color:#F2F4F8}
-html.tablet.skin-studio .panel.left .dim-field:focus-within{background:rgba(10,14,24,.5);box-shadow:inset 0 0 0 1px rgba(242,244,248,.2)}
+html.tablet.skin-studio .panel.left .dim-field:focus-within{background:rgba(242,244,248,.10);box-shadow:inset 0 0 0 1px rgba(242,244,248,.2)}
 /* segbar 凹底 + lp-item 激活 */
 html.tablet.skin-studio .segbar{background:rgba(242,244,248,.06)}
 html.tablet.skin-studio .lp-item.active{background:rgba(242,244,248,.10)}
@@ -2304,14 +2295,7 @@ html.tablet .canvas-scroll{padding:10px}
    v340 · 白底控件文字锁定（桌面：白底一律深字 / iPad：白底改暗玻璃+白字）
    程序枚举出 65 条写死亮色背景规则，逐类补齐，避免"变量反转后变白底白字"
    ========================================================= */
-/* 桌面：凡白底控件，文字锁定深色（防止 --ink 反转后白底白字） */
-html.skin-studio .btn.act,html.skin-studio .btn.sm.act,
-html.skin-studio .preset.active,html.skin-studio .seg-b.active,
-html.skin-studio .segbar button.active,html.skin-studio .stat-chip.hl,
-html.skin-studio .panel.right .lp-item.active,html.skin-studio .card,
-html.skin-studio .tips,html.skin-studio .stat-pill,html.skin-studio .zoom-box,
-html.skin-studio .dim-field,html.skin-studio .dropzone{color:#1D1D1F}
-html.skin-studio .btn.act .ic,html.skin-studio .seg-b.active{color:#1D1D1F}
+
 
 /* iPad：白底控件改暗玻璃 + 白系字（与桌面暗色语言一致；CTA 保持白实底深字） */
 html.tablet.skin-studio .btn:not(.primary):not(.grad),
@@ -2340,6 +2324,20 @@ html.tablet.skin-studio input[type=text],html.tablet.skin-studio input[type=numb
 html.tablet.skin-studio select,html.tablet.skin-studio textarea,
 html.tablet.skin-studio .draft-del{background:rgba(242,244,248,.12);color:#F2F4F8;border-color:rgba(242,244,248,.18)}
 html.tablet.skin-studio .btn.primary,html.tablet.skin-studio .btn.grad{background:#F2F4F8;color:#141A26;border-color:transparent}
+
+/* v343 · iPad 工具按钮强制透明（无底无框）—— 触摸设备 hover 粘滞 + 各类底色规则全部覆盖 */
+html.tablet.skin-studio .dock .tool,html.tablet.skin-studio .dock .dock-ico,
+html.tablet.skin-studio .pad-dock-r .tool,html.tablet.skin-studio .pad-dock-r .dock-ico,
+html.tablet.skin-studio .dock .tool:hover,html.tablet.skin-studio .dock .dock-ico:hover,
+html.tablet.skin-studio .pad-dock-r .tool:hover,html.tablet.skin-studio .pad-dock-r .dock-ico:hover,
+html.tablet.skin-studio .dock .tool:active,html.tablet.skin-studio .dock .dock-ico:active,
+html.tablet.skin-studio .pad-dock-r .tool:active,html.tablet.skin-studio .pad-dock-r .dock-ico:active,
+html.tablet.skin-studio .dock .tool.active,html.tablet.skin-studio .dock .tool.on,
+html.tablet.skin-studio .pad-dock-r .tool.active,html.tablet.skin-studio .pad-dock-r .tool.on{
+  background:transparent;border-color:transparent;box-shadow:none}
+html.tablet.skin-studio .dock .tool.active,html.tablet.skin-studio .dock .tool.on,
+html.tablet.skin-studio .pad-dock-r .tool.active,html.tablet.skin-studio .pad-dock-r .tool.on{
+  color:#F2F4F8}
 </style>
 </head>
 <body>
@@ -8724,7 +8722,7 @@ function projectJSON(name){
 /* v151：标题带上版本号。改完代码后浏览器常拿着缓存的旧 HTML 继续跑，
    界面上却没有任何地方能看出当前跑的是哪一版，于是「明明改了却还是老样子」很难判断。
    标签页标题一眼可核对（也顺带出现在 Safari/Chrome 的分享标题里）。 */
-var APP_VER = "v340";
+var APP_VER = "v347";
 try{ }catch(e){}
 
 /* v167：回退到「改灰色之前」= v163 的 studio（单层轻白卡）为默认。
