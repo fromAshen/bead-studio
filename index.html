@@ -3,7 +3,7 @@
 <!-- v116：产物首行原本缺 <!DOCTYPE> 与 <html>，浏览器按怪异模式渲染
      （百分比高度链、行内元素基线、盒模型都会和标准模式有差异）。这里补回声明，
      原有 pnid 注释一字不动地保留。 -->
-<html lang="zh-CN">
+<html lang="zh-CN" class="skin-studio">
 <head>
 <meta charset="UTF-8">
 <meta content="width=device-width, initial-scale=1, viewport-fit=cover" name="viewport">
@@ -2221,6 +2221,52 @@ html.tablet.skin-studio .segbar{background:rgba(242,244,248,.06)}
 html.tablet.skin-studio .lp-item.active{background:rgba(242,244,248,.10)}
 /* 图层面板本体（白底）*/
 html.tablet.skin-studio .layer-panel{background:rgba(18,24,38,.46);border-color:rgba(242,244,248,.12)}
+
+/* =========================================================
+   v336 · iPad 细节修复 + 边距规范统一
+   1 点击闪动 2 图层箭头截断 3 去快捷键提示 4 左栏选中态截断
+   5 拖杆背景框 6 画布圆角三角阴影 7 边距统一
+   ========================================================= */
+/* 1. 点击闪动 = iPad Safari 的点击高亮（tap highlight），全局去掉 */
+html.tablet *{-webkit-tap-highlight-color:transparent}
+html.tablet button,html.tablet .lp-act,html.tablet .lp-add,html.tablet .tool,
+html.tablet .pad-t,html.tablet .dock-ico{-webkit-tap-highlight-color:transparent;outline:none}
+/* 图层操作按钮（新建/复制/合并/删除）暗色 + 触摸态 */
+html.tablet.skin-studio .lp-act{background:rgba(242,244,248,.08);color:rgba(242,244,248,.8);border-color:rgba(242,244,248,.16)}
+html.tablet.skin-studio .lp-act:active,html.tablet.skin-studio .lp-act.on{background:rgba(242,244,248,.22);color:#F2F4F8}
+html.tablet.skin-studio .lp-act.danger{color:#F07060}
+html.tablet.skin-studio .lp-act.danger:active{background:rgba(240,112,96,.18);color:#F07060;border-color:transparent}
+
+/* 2. 图层上下移动箭头完整展示（取消裁切/压缩） */
+html.tablet .lp-item,html.tablet .lp-fcol,html.tablet .lp-acts,
+html.tablet .lp-list,html.tablet .layer-panel{overflow:visible}
+html.tablet .lp-item .ic,html.tablet .lp-mv .ic{flex:none;overflow:visible}
+html.tablet .lp-act .ic,html.tablet .lp-add .ic{flex:none}
+
+/* 3. iPad 去掉所有快捷键提示 */
+html.tablet .kbd,html.tablet .shortcut,html.tablet .tool .kbd,
+html.tablet .dock-ico .kbd,html.tablet .tl .kbd,html.tablet .lp-item .kbd{display:none !important}
+
+/* 4. 左栏工具选中态不截断（与右栏一致：内缩圆角） */
+html.tablet .tool,html.tablet .pad-t,html.tablet .dock-ico{border-radius:var(--r-sm)}
+html.tablet.skin-studio .tool.active,html.tablet.skin-studio .pad-t.active,
+html.tablet.skin-studio .tool.on,html.tablet.skin-studio .pad-t.on{
+  background:rgba(242,244,248,.20);color:#F2F4F8;
+  box-shadow:inset 0 0 0 1px rgba(242,244,248,.22)}
+
+/* 5. 拖杆（精简用色等）去掉背景框 */
+html.tablet.skin-studio input[type=range]{background:transparent;border:none;box-shadow:none}
+html.tablet.skin-studio input[type=range]::-webkit-slider-runnable-track{background:rgba(242,244,248,.16);border:none}
+html.tablet.skin-studio input[type=range]::-moz-range-track{background:rgba(242,244,248,.16);border:none}
+html.tablet.skin-studio .fld input[type=range]{background:transparent;border:none}
+
+/* 6. 画布左下/右下圆角三角阴影：相框改内描边，去掉外扩 spread */
+html.tablet.skin-studio .canvas-stack{box-shadow:none;border:1px solid rgba(242,244,248,.10)}
+
+/* 7. 边距统一：左右工具栏距边 = 顶栏距边 = 10px（与 .app padding 一致） */
+html.tablet .dock{left:10px;right:auto}
+html.tablet .pad-dock-r{right:10px;left:auto}
+html.tablet .stage-toolbar{padding-left:10px;padding-right:10px}
 </style>
 </head>
 <body>
@@ -8605,7 +8651,7 @@ function projectJSON(name){
 /* v151：标题带上版本号。改完代码后浏览器常拿着缓存的旧 HTML 继续跑，
    界面上却没有任何地方能看出当前跑的是哪一版，于是「明明改了却还是老样子」很难判断。
    标签页标题一眼可核对（也顺带出现在 Safari/Chrome 的分享标题里）。 */
-var APP_VER = "v334";
+var APP_VER = "v336";
 try{ }catch(e){}
 
 /* v167：回退到「改灰色之前」= v163 的 studio（单层轻白卡）为默认。
@@ -8613,7 +8659,11 @@ try{ }catch(e){}
 try{
   var _skinM = /[?&]skin=(classic|soft|flat|softplus|studio)\b/.exec(location.search);
   var _skin = _skinM ? _skinM[1] : "studio";
-  if (_skin !== "classic" && _skin !== "soft") document.documentElement.classList.add("skin-" + _skin);
+  /* v326：html 标签已预置 skin-studio（防亮色闪变），URL 指定其他皮肤时在此切换 */
+  if (_skin !== "studio"){
+    document.documentElement.classList.remove("skin-studio");
+    document.documentElement.classList.add("skin-" + _skin);
+  }
 }catch(e){}
 
 /* v154：开机自检更新 —— 独立站点是静态托管，程序坞里的 PWA 图标会长时间拿着
