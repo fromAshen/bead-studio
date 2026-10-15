@@ -2279,6 +2279,67 @@ html.tablet.skin-studio .canvas-stack{box-shadow:none;border:1px solid rgba(242,
 html.tablet .dock{left:10px;right:auto}
 html.tablet .pad-dock-r{right:10px;left:auto}
 html.tablet .stage-toolbar{padding-left:10px;padding-right:10px}
+
+/* =========================================================
+   v339 · iPad 间距规范（全部 10px，变量+显式双保险，放末尾确保生效）
+   外框(app) → 台面(stage-area) → 内部三框（顶栏/左右工具坞）一律 10px
+   ========================================================= */
+html.tablet{--s2:10px;--s-frame:10px;--s-canvas:10px}
+html.tablet .app{
+  padding:10px;
+  padding-top:calc(10px + env(safe-area-inset-top));
+  padding-right:calc(10px + env(safe-area-inset-right));
+  padding-bottom:calc(10px + env(safe-area-inset-bottom));
+  padding-left:calc(10px + env(safe-area-inset-left));
+}
+html.tablet .stage-area{padding:10px;gap:10px}
+html.tablet .stage-toolbar{padding-left:10px;padding-right:10px}
+html.tablet .dock,html.tablet .pad-dock-r{top:calc(var(--tb-h) + 10px)}
+html.tablet .dock{left:calc(10px + env(safe-area-inset-left));right:auto}
+html.tablet .pad-dock-r{right:calc(10px + env(safe-area-inset-right));left:auto}
+/* 台面内画布自身的留白也统一 10（避免内部再套一层不同值） */
+html.tablet .canvas-scroll{padding:10px}
+
+/* =========================================================
+   v340 · 白底控件文字锁定（桌面：白底一律深字 / iPad：白底改暗玻璃+白字）
+   程序枚举出 65 条写死亮色背景规则，逐类补齐，避免"变量反转后变白底白字"
+   ========================================================= */
+/* 桌面：凡白底控件，文字锁定深色（防止 --ink 反转后白底白字） */
+html.skin-studio .btn.act,html.skin-studio .btn.sm.act,
+html.skin-studio .preset.active,html.skin-studio .seg-b.active,
+html.skin-studio .segbar button.active,html.skin-studio .stat-chip.hl,
+html.skin-studio .panel.right .lp-item.active,html.skin-studio .card,
+html.skin-studio .tips,html.skin-studio .stat-pill,html.skin-studio .zoom-box,
+html.skin-studio .dim-field,html.skin-studio .dropzone{color:#1D1D1F}
+html.skin-studio .btn.act .ic,html.skin-studio .seg-b.active{color:#1D1D1F}
+
+/* iPad：白底控件改暗玻璃 + 白系字（与桌面暗色语言一致；CTA 保持白实底深字） */
+html.tablet.skin-studio .btn:not(.primary):not(.grad),
+html.tablet.skin-studio .btn.act,html.tablet.skin-studio .btn.sm.act{
+  background:rgba(242,244,248,.12);color:rgba(242,244,248,.9);border-color:rgba(242,244,248,.18)}
+html.tablet.skin-studio .preset:not(.active),html.tablet.skin-studio .seg-b:not(.active),
+html.tablet.skin-studio .segbar button:not(.active),
+html.tablet.skin-studio .seg,html.tablet.skin-studio .segbar{
+  background:rgba(242,244,248,.06);color:rgba(242,244,248,.78)}
+html.tablet.skin-studio .preset.active,html.tablet.skin-studio .seg-b.active,
+html.tablet.skin-studio .segbar button.active{
+  background:rgba(242,244,248,.92);color:#141A26;border-color:transparent}
+html.tablet.skin-studio .tool,html.tablet.skin-studio .pad-t,html.tablet.skin-studio .dock-ico,
+html.tablet.skin-studio .rec-btn:not(.active),html.tablet.skin-studio .lp-act,
+html.tablet.skin-studio .lp-add,html.tablet.skin-studio .stat-pill,
+html.tablet.skin-studio .lp-item:not(.active),html.tablet.skin-studio .stat-chip:not(.hl){
+  background:rgba(242,244,248,.10);color:rgba(242,244,248,.85)}
+html.tablet.skin-studio .stat-chip.hl,html.tablet.skin-studio .panel.right .lp-item.active,
+html.tablet.skin-studio .lp-item.active{background:rgba(242,244,248,.92);color:#141A26;border-color:transparent}
+html.tablet.skin-studio .card,html.tablet.skin-studio .tips,html.tablet.skin-studio .zoom-box,
+html.tablet.skin-studio .dim-field,html.tablet.skin-studio .dropzone,
+html.tablet.skin-studio .layer-panel,html.tablet.skin-studio .modal,
+html.tablet.skin-studio .save-box,html.tablet.skin-studio .draft-box,html.tablet.skin-studio .draft-card img,
+html.tablet.skin-studio .canvas-scroll,html.tablet.skin-studio .ruler{background:rgba(242,244,248,.06);color:rgba(242,244,248,.8)}
+html.tablet.skin-studio input[type=text],html.tablet.skin-studio input[type=number],
+html.tablet.skin-studio select,html.tablet.skin-studio textarea,
+html.tablet.skin-studio .draft-del{background:rgba(242,244,248,.12);color:#F2F4F8;border-color:rgba(242,244,248,.18)}
+html.tablet.skin-studio .btn.primary,html.tablet.skin-studio .btn.grad{background:#F2F4F8;color:#141A26;border-color:transparent}
 </style>
 </head>
 <body>
@@ -8663,7 +8724,7 @@ function projectJSON(name){
 /* v151：标题带上版本号。改完代码后浏览器常拿着缓存的旧 HTML 继续跑，
    界面上却没有任何地方能看出当前跑的是哪一版，于是「明明改了却还是老样子」很难判断。
    标签页标题一眼可核对（也顺带出现在 Safari/Chrome 的分享标题里）。 */
-var APP_VER = "v338";
+var APP_VER = "v340";
 try{ }catch(e){}
 
 /* v167：回退到「改灰色之前」= v163 的 studio（单层轻白卡）为默认。
