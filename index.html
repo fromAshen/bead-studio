@@ -11,8 +11,8 @@
 (function(){
   var d = document.documentElement;
   var touch = (navigator.maxTouchPoints || 0) > 0 || "ontouchstart" in window;
-  var shortSide = Math.min(window.innerWidth || screen.width, window.innerHeight || screen.height);
-  var tablet = touch && shortSide > 600;
+  var w0 = window.innerWidth, h0 = window.innerHeight;
+  var tablet = touch && Math.min(w0, h0) > 600 && ((w0 < h0) || Math.max(w0, h0) < 900);
   if (tablet) d.classList.add("tablet");
   if (touch) d.classList.add("touch");
 })();
@@ -3114,7 +3114,9 @@ function isTabletLayout(){
      一开始取 700 会把它挡在平板之外、掉回桌面三栏（画布只剩 403px）；
      而手机横屏最大也就 932×430，600 能干净地把两类分开。
      iPad 半屏分屏（507×738）落到手机堆叠布局，也是合理的。 */
-  return isTouchDevice() && Math.min(window.innerWidth, window.innerHeight) > 600;
+  var w = window.innerWidth, h = window.innerHeight;
+  if (!isTouchDevice() || Math.min(w, h) <= 600) return false;
+  return (w < h) || Math.max(w, h) < 900;   /* v348：横屏走桌面三栏，只有竖屏/窄屏才抽屉 */
 }
 /* 当前是否处于平板形态（读 html 上的 .tablet 类）。
    与 isTabletLayout() 区分：后者按视口/触摸「判定」该走哪个形态，这个是读当前实际形态。 */
@@ -8722,7 +8724,7 @@ function projectJSON(name){
 /* v151：标题带上版本号。改完代码后浏览器常拿着缓存的旧 HTML 继续跑，
    界面上却没有任何地方能看出当前跑的是哪一版，于是「明明改了却还是老样子」很难判断。
    标签页标题一眼可核对（也顺带出现在 Safari/Chrome 的分享标题里）。 */
-var APP_VER = "v347";
+var APP_VER = "v348";
 try{ }catch(e){}
 
 /* v167：回退到「改灰色之前」= v163 的 studio（单层轻白卡）为默认。
