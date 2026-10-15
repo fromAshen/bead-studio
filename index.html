@@ -1726,7 +1726,7 @@ html.skin-studio .dropzone{background:transparent; border:1px dashed var(--line)
 html.skin-studio .dropzone:hover span{color:var(--ink)}
 html.skin-studio .ref-thumb{background-color:#fff;}
 html.skin-studio .stage-area{position:relative}
-html.skin-studio .dock{
+html:not(.tablet).skin-studio .dock{
   position:absolute;left:50%;transform:translateX(-50%);bottom:14px;z-index:8;margin:0;
   border-radius:var(--r-pill);padding:5px 8px;
   background:rgba(255,255,255,.94);border:none;
@@ -2161,7 +2161,7 @@ html.skin-studio .lp-add{background:rgba(242,244,248,.12);color:#F2F4F8;
 html.skin-studio .lp-add:hover{background:rgba(242,244,248,.22)}
 
 /* v305 · 暗色补充六：dock 单行（nowrap+溢出滑动）+ 画布滚动区去留白 */
-html.skin-studio .dock{max-width:calc(100% - 28px)}
+html:not(.tablet).skin-studio .dock{max-width:calc(100% - 28px)}
 html.skin-studio .dock-tools{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
 html.skin-studio .dock-tools::-webkit-scrollbar{display:none}
 html.skin-studio .canvas-scroll{padding:0}
@@ -2171,6 +2171,56 @@ html.skin-studio .dock-tools .tool{flex:0 0 auto;white-space:nowrap}
 /* v321：悬停框 = DOM 元素（跟随格子移动，GPU 合成零重绘——替代"换格即整帧重绘"） */
 #hoverBox{position:absolute;border:1.2px solid #fff;pointer-events:none;z-index:5;display:none;
   box-shadow:0 0 0 1px rgba(17,17,20,.45)}
+
+/* =========================================================
+   v331 · iPad（tablet）暗色覆盖 —— html.tablet 前缀的亮色规则特异性更高，
+   必须用 html.tablet.skin-studio 前缀反压（与桌面暗色覆盖同一套语言）
+   ========================================================= */
+/* ★ 变量反转（tablet 作用域）—— 所有 var(--panel)/var(--bg)/var(--ink) 的元素自动变暗 */
+html.tablet.skin-studio{
+  --panel:rgba(18,24,38,.46); --bg:rgba(10,14,24,.35);
+  --ink:#F2F4F8; --ink2:rgba(242,244,248,.78); --ink3:rgba(242,244,248,.68); --ink4:rgba(242,244,248,.38);
+  --line:rgba(242,244,248,.14); --line2:rgba(242,244,248,.20);
+  --hover:rgba(255,255,255,.10); --fill-recess:rgba(242,244,248,.06);
+  --glass:rgba(18,24,38,.46); --float:rgba(22,28,44,.94); --solid:#141A26;
+  --fill:rgba(242,244,248,.08); --fill-strong:rgba(242,244,248,.16);
+  --sel-bg:rgba(242,244,248,.18); --sel-fg:#F2F4F8; --ring:rgba(242,244,248,.6);
+  --warn:#F0A860; --danger:#F07060;
+}
+/* 面板卡（左栏画布尺寸/参考图/图纸优化） */
+html.tablet.skin-studio .card{background:rgba(18,24,38,.46);border-color:rgba(242,244,248,.12)}
+html.tablet.skin-studio .panel.left .card,html.tablet.skin-studio .drawer-card{background:rgba(18,24,38,.46)}
+html.tablet.skin-studio .panel{background:rgba(18,24,38,.46);border-color:rgba(242,244,248,.12)}
+html.tablet.skin-studio .panel-body,html.tablet.skin-studio .layer-panel,
+html.tablet.skin-studio .drawer,html.tablet.skin-studio .pad-dock-r{background:rgba(18,24,38,.46)}
+html.tablet.skin-studio .panel.left .card,html.tablet.skin-studio .drawer-card{background:rgba(18,24,38,.46)}
+/* dock 工具坞（白 .9 → 暗玻璃） */
+html.tablet.skin-studio .dock,html.tablet.skin-studio .pad-dock-r{
+  background:rgba(16,22,36,.55);border-color:rgba(242,244,248,.10);
+  box-shadow:0 12px 32px rgba(0,0,0,.35)}
+/* 工具 hover：白灰 → 白玻璃 */
+html.tablet.skin-studio .tool:hover,html.tablet.skin-studio .pad-t:hover,
+html.tablet.skin-studio .dock-ico:hover{background:rgba(242,244,248,.10);color:#F2F4F8}
+html.tablet.skin-studio .tool.active,html.tablet.skin-studio .pad-t.active{background:rgba(242,244,248,.18);color:#F2F4F8}
+/* 橡皮二级 seg（白实底） */
+html.tablet.skin-studio .pad-er .seg{background:rgba(16,22,36,.55);border-color:rgba(242,244,248,.10)}
+html.tablet.skin-studio .pad-er .seg-b{color:rgba(242,244,248,.78)}
+html.tablet.skin-studio .pad-er .seg-b.active{background:rgba(242,244,248,.92);color:#141A26}
+/* 色板开关/复制按钮 hover */
+html.tablet.skin-studio #btnPalToggle:hover,html.tablet.skin-studio #btnCopyList:hover,
+html.tablet.skin-studio .pad-zoom .pad-zfit:hover{background:rgba(242,244,248,.10);color:#F2F4F8}
+/* 新建图层圆钮 */
+html.tablet.skin-studio .layer-panel .lp-list .lp-add{background:rgba(242,244,248,.12);color:#F2F4F8;border-color:rgba(242,244,248,.18)}
+html.tablet.skin-studio .layer-panel .lp-list .lp-add:hover{background:rgba(242,244,248,.22);border-color:rgba(242,244,248,.28);color:#F2F4F8}
+/* 尺寸输入聚焦 */
+html.tablet.skin-studio .panel.left .dim-field{background:rgba(10,14,24,.35)}
+html.skin-studio .panel.left .dim-field input{color:#F2F4F8}
+html.tablet.skin-studio .panel.left .dim-field:focus-within{background:rgba(10,14,24,.5);box-shadow:inset 0 0 0 1px rgba(242,244,248,.2)}
+/* segbar 凹底 + lp-item 激活 */
+html.tablet.skin-studio .segbar{background:rgba(242,244,248,.06)}
+html.tablet.skin-studio .lp-item.active{background:rgba(242,244,248,.10)}
+/* 图层面板本体（白底）*/
+html.tablet.skin-studio .layer-panel{background:rgba(18,24,38,.46);border-color:rgba(242,244,248,.12)}
 </style>
 </head>
 <body>
@@ -8555,7 +8605,7 @@ function projectJSON(name){
 /* v151：标题带上版本号。改完代码后浏览器常拿着缓存的旧 HTML 继续跑，
    界面上却没有任何地方能看出当前跑的是哪一版，于是「明明改了却还是老样子」很难判断。
    标签页标题一眼可核对（也顺带出现在 Safari/Chrome 的分享标题里）。 */
-var APP_VER = "v332";
+var APP_VER = "v334";
 try{ }catch(e){}
 
 /* v167：回退到「改灰色之前」= v163 的 studio（单层轻白卡）为默认。
