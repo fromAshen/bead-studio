@@ -2480,6 +2480,34 @@ html.tland .lp-add .ic{width:13px;height:13px}
 html.tland.skin-studio .panel .lp-mini,html.tland .layer-panel .lp-mini{width:24px;height:24px}
 html.tland .sw{padding:8px 0}
 
+/* =====================================================================
+   v388 · 全局版式统一（用户拍板，所有屏幕：桌面三栏 / iPad 竖屏抽屉 / 横屏 tland）
+   ① 左右面板宽度统一 280（压过 base 274/322、media 242/282、skin 292、tablet 304/224）
+   ② 面板内容区四边 16px；卡片不再自带内边距 → 内容到面板边缘合计 16px
+   ③ 中间画板台四边 16px（压过 skin 20 / tablet 10）
+   !important 是因为这些值散落在 base/skin-studio/tablet/tland 多层历史规则里，
+   单靠选择器特异性无法一次性全覆盖；此块是这四个值的唯一权威。
+   ===================================================================== */
+.panel.left,.panel.right{width:280px!important;flex:0 0 280px!important}
+.panel-body{padding:16px!important}
+.panel .card{padding:0!important}
+.stage-area{padding:16px!important}
+/* 画布顶条（缩放/撤销行）：顶部归零（距顶正好16），底部 6px —— 不然画布贴着按钮 */
+.stage-topbar{padding:0 0 6px!important}
+/* 色板色块：正方形（studio 写死 28px 行高 + aspect-ratio:auto 在 280 面板里压成扁椭圆）。
+   面板宽已被 v388 统一为 280 → 直接固定 5 列（每格约 43px），不依赖 auto-fill
+   （实测 aspect-ratio 项目的尺寸贡献会让 auto-fill 少算列数）；
+   手机窄屏（≤900 堆叠布局）恢复按宽度自适应 */
+.pal{grid-template-columns:repeat(6,1fr)!important;grid-auto-rows:auto!important}
+.pal .sw2{aspect-ratio:1/1!important;height:auto!important;width:100%!important;border-radius:var(--r-sm)!important}
+@media (max-width:900px){
+  html:not(.tablet):not(.tland) .pal{grid-template-columns:repeat(auto-fill,minmax(52px,1fr))!important}
+}
+/* 图例色号 chip：字缩小减轻字重（studio 的 12px/600 在 3 列 chip 里，
+   4~5 位数用量会挤），数字保持等宽 */
+.stat-chip .code{font-size:11px!important;font-weight:500!important}
+.stat-chip .ct{font-size:10px!important;font-weight:400!important}
+
 /* v386 · 顶栏单行化：1180px 下 html.touch 的 44px 按钮 + 完整文档信息组放不下，
    右侧动作组整组折行（用户截图实测）。三步压回单行：
    ① 按钮对齐平板 stage-toolbar 紧凑档（32px，竖屏平板同款）；
@@ -8999,7 +9027,7 @@ function projectJSON(name){
 /* v151：标题带上版本号。改完代码后浏览器常拿着缓存的旧 HTML 继续跑，
    界面上却没有任何地方能看出当前跑的是哪一版，于是「明明改了却还是老样子」很难判断。
    标签页标题一眼可核对（也顺带出现在 Safari/Chrome 的分享标题里）。 */
-var APP_VER = "v387";
+var APP_VER = "v394";
 try{ }catch(e){}
 
 /* v167：回退到「改灰色之前」= v163 的 studio（单层轻白卡）为默认。
