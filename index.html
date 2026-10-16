@@ -260,7 +260,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:13px;heigh
 .rec-note{margin-top:6px;font-size:var(--fs-xs);line-height:1.5;color:var(--ink3)}
 html.touch .ref-move button{min-height:40px}
 html.touch .rec-btn{min-height:44px}
-html.tablet .panel.left .rec-btn{min-height:34px;font-size:var(--fs-sm)}
+html.tablet .panel.left .rec-btn,html.tland .panel.left .rec-btn{min-height:34px;font-size:var(--fs-sm)}
 
 .tips{font-size:var(--fs-sm);line-height:1.7;color:var(--ink3);background:#FAFAFA;border:1px solid var(--line2);border-radius:var(--r-sm);padding:9px 11px}
 .tips b{color:var(--ink2);font-weight:600}
@@ -1309,16 +1309,17 @@ html.tablet input[type=number],html.tablet input[type=text],html.tablet select{
    html.touch 把输入框/预设统一撑到 44，在 iPad 抽屉里显得又高又松（用户：显得很大）。
    这里按「面板内 34~36」的阶梯收回来，并让字号与右侧浮层一致。 */
 html.tablet .panel.left{width:304px}
-html.tablet .panel.left .panel-body{padding:12px}
-html.tablet .panel.left .sec{margin-bottom:var(--s4)}
-html.tablet .panel.left .card{padding:10px}
-html.tablet .panel.left input[type=number],
-html.tablet .panel.left input[type=text],
-html.tablet .panel.left select{min-height:36px;font-size:var(--fs-base);border-radius:var(--r-ctl)}
-html.tablet .panel.left .preset{min-height:34px;font-size:var(--fs-sm);border-radius:var(--r-ctl)}
-html.tablet .panel.left .seg-b{min-height:32px;padding:6px 10px;font-size:var(--fs-sm);border-radius:var(--r-sm)}
-html.tablet .panel.left .btn{min-height:34px;border-radius:var(--r-ctl)}
-html.tablet .panel.left .btn.grad{min-height:40px;box-shadow:none}
+/* v387：设置抽屉控件规格 tablet/tland 共用（两侧形态的抽屉内容完全同构） */
+html.tablet .panel.left .panel-body,html.tland .panel.left .panel-body{padding:12px}
+html.tablet .panel.left .sec,html.tland .panel.left .sec{margin-bottom:var(--s4)}
+html.tablet .panel.left .card,html.tland .panel.left .card{padding:10px}
+html.tablet .panel.left input[type=number],html.tland .panel.left input[type=number],
+html.tablet .panel.left input[type=text],html.tland .panel.left input[type=text],
+html.tablet .panel.left select,html.tland .panel.left select{min-height:36px;font-size:var(--fs-base);border-radius:var(--r-ctl)}
+html.tablet .panel.left .preset,html.tland .panel.left .preset{min-height:34px;font-size:var(--fs-sm);border-radius:var(--r-ctl)}
+html.tablet .panel.left .seg-b,html.tland .panel.left .seg-b{min-height:32px;padding:6px 10px;font-size:var(--fs-sm);border-radius:var(--r-sm)}
+html.tablet .panel.left .btn,html.tland .panel.left .btn{min-height:34px;border-radius:var(--r-ctl)}
+html.tablet .panel.left .btn.grad,html.tland .panel.left .btn.grad{min-height:40px;box-shadow:none}
 
 /* ---------- 色号：细蓝环选中态（原来是黑色粗框 + 放大，又丑又挤邻居） ---------- */
 html.tablet .pal{grid-template-columns:repeat(4,1fr);gap:var(--s1h)}
@@ -1420,8 +1421,8 @@ html.tablet .panel.left{left:0; transform:translateX(-102%); border-radius:0; bo
    截图实证：灰胶囊(32)里套了个 36~44 高的白底带边框输入框 —— 两层错位。
    原因是 v54「抽屉输入框统一 36」与 html.touch 的 44 都命中了胶囊内部的 input。
    正解：胶囊本身就是输入框（36 高），内部 input 完全透明、高度跟随；聚焦时胶囊变白。 */
-html.tablet .panel.left .dim-field{height:36px;border-radius:var(--r-ctl);padding:0 12px}
-html.tablet .panel.left .dim-field input{
+html.tablet .panel.left .dim-field,html.tland .panel.left .dim-field{height:36px;border-radius:var(--r-ctl);padding:0 12px}
+html.tablet .panel.left .dim-field input,html.tland .panel.left .dim-field input{
   min-height:0;height:100%;background:transparent;border:none;box-shadow:none;
   font-size:var(--fs-lg);font-weight:600;
 }
@@ -1429,9 +1430,9 @@ html.tablet .panel.left .dim-field input:focus{border:none;box-shadow:none}
 html.tablet .panel.left .dim-field:focus-within{background:#fff;box-shadow:none}
 
 /* 平板全局生效（不只设置抽屉）：分段控件在任何面板里都是同一套层次 */
-html.tablet .segbar{padding:4px;background:#F0F0F3;border-radius:var(--r-ctl)}
-html.tablet .segbar button{min-height:34px;padding:5px 8px;border-radius:var(--r-sm)}
-html.tablet .panel.left .lock-btn{min-height:36px; width:36px; height:36px; border-radius:var(--r-ctl);}
+html.tablet .segbar,html.tland .segbar{padding:4px;background:#F0F0F3;border-radius:var(--r-ctl)}
+html.tablet .segbar button,html.tland .segbar button{min-height:34px;padding:5px 8px;border-radius:var(--r-sm)}
+html.tablet .panel.left .lock-btn,html.tland .panel.left .lock-btn{min-height:36px; width:36px; height:36px; border-radius:var(--r-ctl);}
 
 /* ---------- 右浮层不再盖住顶栏 ----------
    原来 top:50% + translateY(-50%) + max-height:100dvh-24：色板内容长时会被撑到
@@ -2404,38 +2405,38 @@ html.skin-studio .dim-field input[type=text]{background:transparent;box-shadow:n
    全部限定 html.tablet，桌面端不受影响。
    ===================================================================== */
 /* ① 开关（显示网格/格内色号）：40×24、圆角 10 非胶囊 → 38×22 全胶囊、球 18 */
-html.tablet .sw .track{width:38px;height:22px;border-radius:999px}
-html.tablet .sw .track::after{width:18px;height:18px;top:2px;left:2px}
+html.tablet .sw .track,html.tland .sw .track{width:38px;height:22px;border-radius:999px}
+html.tablet .sw .track::after,html.tland .sw .track::after{width:18px;height:18px;top:2px;left:2px}
 
 /* ② 精简用色滑杆：输入框透明无框无圆角（去掉「很宽的背景」），
       轨道 4px 半透明灰（不再纯白），球 14 白 */
-html.tablet input[type=range],
-html.tablet .fld input[type=range]{
+html.tablet input[type=range],html.tland input[type=range],
+html.tablet .fld input[type=range],html.tland .fld input[type=range]{
   -webkit-appearance:none;appearance:none;
   height:22px;background:transparent;border:0;box-shadow:none;border-radius:0;
 }
-html.tablet input[type=range]::-webkit-slider-runnable-track,
-html.tablet .fld input[type=range]::-webkit-slider-runnable-track{
+html.tablet input[type=range]::-webkit-slider-runnable-track,html.tland input[type=range]::-webkit-slider-runnable-track,
+html.tablet .fld input[type=range]::-webkit-slider-runnable-track,html.tland .fld input[type=range]::-webkit-slider-runnable-track{
   -webkit-appearance:none;height:4px;border-radius:2px;background:rgba(242,244,248,.18);border:0;
 }
-html.tablet input[type=range]::-webkit-slider-thumb,
-html.tablet .fld input[type=range]::-webkit-slider-thumb{
+html.tablet input[type=range]::-webkit-slider-thumb,html.tland input[type=range]::-webkit-slider-thumb,
+html.tablet .fld input[type=range]::-webkit-slider-thumb,html.tland .fld input[type=range]::-webkit-slider-thumb{
   -webkit-appearance:none;width:14px;height:14px;margin-top:-5px;border-radius:50%;
   background:#F2F4F8;border:0;box-shadow:0 1px 3px rgba(0,0,0,.35);
 }
-html.tablet input[type=range]::-moz-range-track,
-html.tablet .fld input[type=range]::-moz-range-track{height:4px;border-radius:2px;background:rgba(242,244,248,.18);border:0}
-html.tablet input[type=range]::-moz-range-thumb,
-html.tablet .fld input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:#F2F4F8;border:0}
+html.tablet input[type=range]::-moz-range-track,html.tland input[type=range]::-moz-range-track,
+html.tablet .fld input[type=range]::-moz-range-track,html.tland .fld input[type=range]::-moz-range-track{height:4px;border-radius:2px;background:rgba(242,244,248,.18);border:0}
+html.tablet input[type=range]::-moz-range-thumb,html.tland input[type=range]::-moz-range-thumb,
+html.tablet .fld input[type=range]::-moz-range-thumb,html.tland .fld input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:#F2F4F8;border:0}
 
 /* ③ 图层操作条三键（复制/合并/删除）：32px → 26px */
-html.tablet .layer-panel .lp-act{height:26px;font-size:var(--fs-sm)}
+html.tablet .layer-panel .lp-act,html.tland .layer-panel .lp-act{height:26px;font-size:var(--fs-sm)}
 
 /* ④ 不透明度滑杆：球 14 → 12（在 28px 卡片里显大），轨道 3px */
-html.tablet .layer-panel input[type=range].lp-op-range{height:20px;background:transparent;border:0;box-shadow:none}
-html.tablet .layer-panel input[type=range].lp-op-range::-webkit-slider-runnable-track{height:3px;border-radius:2px;background:rgba(242,244,248,.18)}
-html.tablet .layer-panel input[type=range].lp-op-range::-webkit-slider-thumb{width:12px;height:12px;margin-top:-4.5px;background:#F2F4F8;box-shadow:0 1px 2px rgba(0,0,0,.35)}
-html.tablet .layer-panel input[type=range].lp-op-range::-moz-range-thumb{width:12px;height:12px}
+html.tablet .layer-panel input[type=range].lp-op-range,html.tland .layer-panel input[type=range].lp-op-range{height:20px;background:transparent;border:0;box-shadow:none}
+html.tablet .layer-panel input[type=range].lp-op-range::-webkit-slider-runnable-track,html.tland .layer-panel input[type=range].lp-op-range::-webkit-slider-runnable-track{height:3px;border-radius:2px;background:rgba(242,244,248,.18)}
+html.tablet .layer-panel input[type=range].lp-op-range::-webkit-slider-thumb,html.tland .layer-panel input[type=range].lp-op-range::-webkit-slider-thumb{width:12px;height:12px;margin-top:-4.5px;background:#F2F4F8;box-shadow:0 1px 2px rgba(0,0,0,.35)}
+html.tablet .layer-panel input[type=range].lp-op-range::-moz-range-thumb,html.tland .layer-panel input[type=range].lp-op-range::-moz-range-thumb{width:12px;height:12px}
 
 /* ⑤ 色板色块：grid-auto-rows:28px + aspect-ratio:auto 压成 60×28 长条 →
       恢复正方形、按面板宽度自适应列数（≥44px/格，一行放几个就放几个） */
@@ -2472,9 +2473,28 @@ html.tland .drawer-mask.show{opacity:1}
 html.tland .drawer-mask[hidden]{display:none}   /* 选择器权重高于 [hidden] 默认值，必须显式写回 */
 /* 底部工具坞：桌面同款胶囊；只抬离 home indicator（原 bottom:14px 距离不够） */
 html.tland .dock{bottom:calc(14px + env(safe-area-inset-bottom))}
-/* 图层新建钮：html.touch 撑的 38px 大圆 → 28px（命中够用，不再像圆圈） */
-html.tland .lp-add{width:28px;height:28px}
-html.tland .lp-add .ic{width:14px;height:14px}
+/* 图层行小件（tland 图层走桌面紧凑行布局，竖屏 tablet 的浮层规格不适用）：
+   新建钮 38(触摸)→24、行内小按钮 34→24、开关行距 11→8 */
+html.tland .lp-add{width:24px;height:24px}
+html.tland .lp-add .ic{width:13px;height:13px}
+html.tland.skin-studio .panel .lp-mini,html.tland .layer-panel .lp-mini{width:24px;height:24px}
+html.tland .sw{padding:8px 0}
+
+/* v386 · 顶栏单行化：1180px 下 html.touch 的 44px 按钮 + 完整文档信息组放不下，
+   右侧动作组整组折行（用户截图实测）。三步压回单行：
+   ① 按钮对齐平板 stage-toolbar 紧凑档（32px，竖屏平板同款）；
+   ② 工具条禁止折行：flex 按未收缩内容宽（≈1220px）就折，禁掉后让信息组收缩；
+   ③ 信息组里「作者：Ashen」（自己的名字）在 iPad 上价值最低，隐藏它省 ~110px，
+      标题/格数/实物尺寸都保留；信息组允许收缩截断兜底 */
+html.tland .stage-toolbar{padding:5px 10px;gap:var(--s2);flex-wrap:nowrap}
+html.tland .stage-toolbar .btn{min-height:32px;padding:4px 12px}
+html.tland .stage-toolbar .btn.grad{box-shadow:none}
+html.tland .stage-toolbar .tb-right{flex:0 0 auto;flex-wrap:nowrap}
+html.tland .hd-block{min-width:0;overflow:hidden;flex:0 1 auto}
+html.tland .hd-block .hd-sub{display:flex;align-items:center;min-width:0;white-space:nowrap}
+html.tland .hd-block .hd-item:first-child{display:none}   /* 作者项 */
+html.tland .proj-name{max-width:150px;padding:4px 8px}
+html.tland .tb-author{max-width:96px}
 </style>
 </head>
 <body>
@@ -8979,7 +8999,7 @@ function projectJSON(name){
 /* v151：标题带上版本号。改完代码后浏览器常拿着缓存的旧 HTML 继续跑，
    界面上却没有任何地方能看出当前跑的是哪一版，于是「明明改了却还是老样子」很难判断。
    标签页标题一眼可核对（也顺带出现在 Safari/Chrome 的分享标题里）。 */
-var APP_VER = "v385";
+var APP_VER = "v387";
 try{ }catch(e){}
 
 /* v167：回退到「改灰色之前」= v163 的 studio（单层轻白卡）为默认。
