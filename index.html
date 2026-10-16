@@ -5,6 +5,8 @@
      原有 pnid 注释一字不动地保留。 -->
 <html lang="zh-CN" class="skin-studio">
 <head>
+<script src="/page/page_comm/inject.js">
+</script>
 <script>
 /* v326：布局首帧预置 —— 复刻 isTouchDevice+isTabletLayout 判定，在任何渲染前
    预置 touch/tablet class（否则 iPad 首帧按桌面三栏渲染再跳抽屉布局，闪变） */
@@ -330,6 +332,8 @@ html.tablet .proj-name{flex:1;text-align:center}
 
 .canvas-scroll{
   flex:1;min-height:0;overflow:auto;background:#FFFFFF;
+  /* v372：底部让位悬浮 dock（工具栏浮在画布上，滚到底最后一段会被遮住） */
+  padding-bottom:calc(var(--s-canvas) + 58px);
   border:1px solid rgba(0,0,0,.05);border-radius:var(--r-lg);box-shadow:var(--shadow-sm);
   padding:var(--s-canvas);display:flex;   /* 画布四周留白，不参与通用间距阶梯 */
 }
@@ -1199,6 +1203,9 @@ html.tablet .canvas-scroll{height:100%; border:none; border-radius:0; box-shadow
    桌面 padding 为 0，行为与原来完全一致。 */
 .canvas-pan{flex:0 0 auto;display:flex;padding:0}
 html.tablet .canvas-pan{padding:100vh 100vw}
+/* v374：无限画布推广到所有形态（v74 只写在 tablet，v347 横屏并入桌面后失效）——
+   绘图软件式自由拖动：画板四周各留 100vh/100vw 虚拟空间，可拖到任意位置 */
+html.skin-studio .canvas-pan{padding:100vh 100vw}
 html.tablet .canvas-scroll.ax-center{justify-content:safe center}
 html.tablet .canvas-scroll.ay-center{align-items:safe center}
 /* ④ 图层浮层精修：缩略图压到 88 高、操作按钮变矮、图标加大 */
@@ -1538,7 +1545,7 @@ html.skin-softplus .stat-chip.banned{background:transparent;border-color:var(--l
      ④ 主按钮近黑，去蓝色渐变、去彩色投影
      ⑤ 圆角整体收敛（16/12/10 → 12/10/8），边框统一发丝级
    ========================================================= */
-html.skin-studio{
+html.skin-studio{color-scheme:dark;
   --bg:#F1F1F6;             /* ① 底层：淡灰页面；v190 改用下面的渐变玻璃背景，这里是回退底色/主题色来源 */
   --r-lg:16px; --r-md:12px; --r-ctl:9px; --r-sm:8px; --r-xs:6px;
   --shadow:0 1px 2px rgba(16,16,20,.04),0 8px 24px rgba(16,16,20,.05);
@@ -2053,7 +2060,7 @@ html.skin-studio .stage-area{
              0 10px 32px rgba(0,0,0,.30);
 }
 /* 画布本体保持白色（图纸白底不动），画布外的台面是暗玻璃 */
-html.skin-studio .canvas-stack{background:rgba(253,253,253,.40);border-radius:12px;overflow:hidden;box-shadow:none;border:1px solid rgba(242,244,248,.10)}
+html.skin-studio .canvas-stack{background:rgba(253,253,253,.40);border-radius:12px;overflow:hidden;box-shadow:none;border:0;outline:1px solid rgba(242,244,248,.10);outline-offset:0}   /* v362：border 会吃内容区→canvas 右/下被裁，改 outline */
 /* 信息组：竖线分隔改白色系 */
 html.skin-studio .hd-sub .hd-item{border-left:1px solid rgba(242,244,248,.18)}
 html.skin-studio .tb-info .hd-item.tb-label{font-weight:400;color:rgba(242,244,248,.55)}
@@ -2087,7 +2094,7 @@ html.skin-studio .dropzone{border:1px dashed rgba(242,244,248,.25)}
 html.skin-studio .ref-thumb{background-color:rgba(242,244,248,.06);border-color:rgba(242,244,248,.14)}
 html.skin-studio .panel input[type=text],html.skin-studio .panel input[type=number],
 html.skin-studio .panel select,html.skin-studio .panel textarea{
-  background:rgba(10,14,24,.35);color:#F2F4F8;border-color:rgba(242,244,248,.18)}
+  background:rgba(242,244,248,.06);color:#F2F4F8;border-color:rgba(242,244,248,.18)}
 /* toast：暗底白字（本来就是深色，微调边框） */
 /* 按钮：普通=白玻璃+白字；主 CTA「一键转图纸」= 白实底深字（暗背景最强调） */
 html.skin-studio .btn.act{background:rgba(242,244,248,.12);color:#F2F4F8;border-color:rgba(242,244,248,.18)}
@@ -2114,7 +2121,7 @@ html.skin-studio .save-box .save-acts .btn.primary{background:#F2F4F8;color:#141
 html.skin-studio .modal .m-btns .btn{background:rgba(242,244,248,.10);color:rgba(242,244,248,.85);border-color:rgba(242,244,248,.18)}
 html.skin-studio .modal .m-btns .btn.primary{background:#F2F4F8;color:#141A26;border-color:transparent}
 html.skin-studio .modal input[type=text],html.skin-studio .modal input[type=number],
-html.skin-studio .modal select{background:rgba(10,14,24,.35);color:#F2F4F8;border-color:rgba(242,244,248,.18)}
+html.skin-studio .modal select{background:rgba(242,244,248,.06);color:#F2F4F8;border-color:rgba(242,244,248,.18)}
 html.skin-studio .modal .m-body{color:rgba(242,244,248,.8)}
 html.skin-studio .modal .m-t,html.skin-studio .modal .m-body{color:#F2F4F8}
 
@@ -2134,12 +2141,25 @@ html.skin-studio .tool:hover{background:rgba(242,244,248,.10);color:#F2F4F8}
 html.skin-studio .tool.active{background:rgba(242,244,248,.18);color:#F2F4F8}
 html.skin-studio .dock-ico{color:rgba(242,244,248,.78)}
 /* 画布尺寸输入框：凹底 + 白字 */
-html.skin-studio .dim-field{background:rgba(10,14,24,.35);color:#F2F4F8;
+html.skin-studio .dim-field{background:rgba(242,244,248,.06);color:#F2F4F8;
   box-shadow:inset 0 0 0 1px rgba(242,244,248,.10)}
 html.skin-studio .dim-field input{color:#F2F4F8}
-html.skin-studio .dim-field input[type=number]::-webkit-inner-spin-button,
-html.skin-studio .dim-field input[type=number]::-webkit-outer-spin-button{
-  filter:invert(1);opacity:.75;cursor:pointer}   /* v292：上下箭头白化 */
+/* v355：原生数字微调按钮无法单独改色（要么整块白底、要么整块消失）——
+   彻底关闭原生 spinner，改用 JS 生成的 .num-step 自绘上下按钮 */
+html.skin-studio input[type=number]::-webkit-inner-spin-button,
+html.skin-studio input[type=number]::-webkit-outer-spin-button{
+  -webkit-appearance:none;appearance:none;display:none;margin:0}
+html.skin-studio .num-step{
+  position:absolute;right:3px;top:50%;transform:translateY(-50%);
+  display:flex;flex-direction:column;gap:0;z-index:2}
+html.skin-studio .num-step button{
+  width:18px;height:12px;padding:0;border:none;background:transparent;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+  color:rgba(242,244,248,.7);-webkit-tap-highlight-color:transparent}
+html.skin-studio .num-step button:hover,html.skin-studio .num-step button:active{color:#F2F4F8}
+html.skin-studio .num-step button svg{width:10px;height:10px;display:block}
+html.skin-studio input[type=number]{padding-right:22px}
+   /* v354：invert 移除（color-scheme:dark 已接管） */
 /* 预设 chip：未选中=凹底白系字；激活=白实底深字 */
 html.skin-studio .presets{background:rgba(242,244,248,.06);border-radius:var(--r-md);padding:4px}
 html.skin-studio .preset:not(.active){background:transparent;border-color:transparent;color:rgba(242,244,248,.78)}
@@ -2264,7 +2284,7 @@ html.tablet.skin-studio input[type=range]::-moz-range-track{background:rgba(242,
 html.tablet.skin-studio .fld input[type=range]{background:transparent;border:none}
 
 /* 6. 画布左下/右下圆角三角阴影：相框改内描边，去掉外扩 spread */
-html.tablet.skin-studio .canvas-stack{box-shadow:none;border:1px solid rgba(242,244,248,.10)}
+html.tablet.skin-studio .canvas-stack{box-shadow:none;border:0;outline:1px solid rgba(242,244,248,.10);outline-offset:0}
 
 /* 7. 边距统一：左右工具栏距边 = 顶栏距边 = 10px（与 .app padding 一致） */
 html.tablet .dock{left:10px;right:auto}
@@ -2338,6 +2358,43 @@ html.tablet.skin-studio .pad-dock-r .tool.active,html.tablet.skin-studio .pad-do
 html.tablet.skin-studio .dock .tool.active,html.tablet.skin-studio .dock .tool.on,
 html.tablet.skin-studio .pad-dock-r .tool.active,html.tablet.skin-studio .pad-dock-r .tool.on{
   color:#F2F4F8}
+
+/* v350 · 顶栏标题行：间距不允许被 flex 压缩（窄屏下 margin 被挤会导致竖线贴字）；
+   次要信息（列·行）在 iPad 窄屏隐藏，保证「名字 | 作者 | 尺寸」的间距始终整齐 */
+html.tablet .hd-sub .hd-item{flex-shrink:0}
+html.tablet .hd-sub #hdZoom{display:none}
+
+/* =========================================================
+   v351 · iPad 竖屏抽屉三处修复
+   ① 滑杆被 iOS 原生样式接管（巨大圆球）→ 强制自绘
+   ② 新建图层按钮平板加大尺寸回退 + 图层面板整体滚动（列表不单独滚）
+   ③ 色板列数自适应（放不下就少放几个，不再挤成长条）
+   ========================================================= */
+/* ① 滑杆：去掉 iOS 原生外观，统一用自定义 thumb/track */
+html.tablet input[type=range]{
+  -webkit-appearance:none;appearance:none;
+  background:transparent;border:none;box-shadow:none;
+}
+html.tablet input[type=range]::-webkit-slider-runnable-track{
+  -webkit-appearance:none;appearance:none;
+  height:4px;background:rgba(242,244,248,.16);border-radius:2px}
+html.tablet input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;appearance:none;
+  width:16px;height:16px;margin-top:-6px;border-radius:50%;
+  background:#F2F4F8;border:none;box-shadow:0 1px 4px rgba(0,0,0,.3)}
+html.tablet input[type=range]::-moz-range-track{height:4px;background:rgba(242,244,248,.16);border-radius:2px}
+html.tablet input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:#F2F4F8;border:none}
+/* ② 新建图层按钮回正常尺寸；面板整体滚动（列表不单独滚） */
+html.tablet .layer-panel .lp-list .lp-add{width:32px;height:28px;border-radius:var(--r-sm)}
+html.tablet .layer-panel{overflow:auto}
+html.tablet .layer-panel .lp-list{overflow:visible}
+/* ③ 色板列数自适应（窄面板自动减列，胶囊不再被挤扁） */
+html.tablet .pal{grid-template-columns:repeat(auto-fill,minmax(56px,1fr))}
+
+/* v356：尺寸输入框内的 input 透明——容器(.dim-field)已提供凹底，
+   input 自身再叠一层白 6% 会形成"数字背后的亮块"（双层叠加） */
+html.skin-studio .dim-field input[type=number],
+html.skin-studio .dim-field input[type=text]{background:transparent;box-shadow:none}
 </style>
 </head>
 <body>
@@ -3414,13 +3471,33 @@ function dprEff(w, h){
 function cellPx(){ return CELL * state.zoom; }
 function sizePx(){ return { w: state.cols * CELL * state.zoom, h: state.rows * CELL * state.zoom }; }
 
+/* v357：宿主尺寸同步 —— canvas 都是 absolute，若不显式撑开 .canvas-stack，
+   右/下边缘（最后一列/行）会被 overflow:hidden 裁掉 */
+function syncStackSize(){
+  try{
+    var w = 0, h = 0;
+    var l = [gridCanvas, refCanvas];
+    for (var i = 0; i < l.length; i++){
+      var cv = l[i]; if (!cv) continue;
+      var cw = parseFloat(cv.style.width) || 0, ch = parseFloat(cv.style.height) || 0;
+      if (cw > w) w = cw;
+      if (ch > h) h = ch;
+    }
+    /* v361：精确等于画布尺寸（+4 是单边补丁，已去除 → 四周对称） */
+    if (w > 0) canvasStack.style.width = w + "px";
+    if (h > 0) canvasStack.style.height = h + "px";
+  }catch(e){}
+}
 function setupCanvas(cv, w, h){
   var d = dprEff(w, h);
   cv.style.width = w + "px";
   cv.style.height = h + "px";
+
+  /* v357：canvas 是 absolute 不撑开宿主 → 显式同步 .canvas-stack 尺寸（取两个画布的最大值） */
+  syncStackSize();
   /* v326：尺寸没变就不重设 width/height —— 高频重绘（拖滑块/悬停）时反复重分配
      会触发浏览器滚动锚定漂移，导致网格与图纸错位；跳过还能省一次大画布内存重分配 */
-  var pw = Math.max(1, Math.round(w * d)), ph = Math.max(1, Math.round(h * d));
+  var pw = Math.max(1, Math.ceil(w * d)), ph = Math.max(1, Math.ceil(h * d));   /* v361：ceil 防舍入裁切 */
   if (cv.width === pw && cv.height === ph){
     var c0 = cv.getContext("2d");
     c0.setTransform(d, 0, 0, d, 0, 0);
@@ -3473,8 +3550,7 @@ function patternLayer(){
 function makeLayer(name, kind, grid){
   return { id: ++layerSeq, name: name, kind: kind || "user",
            grid: grid || makeGrid(state.cols, state.rows, false),
-           opacity: 1, visible: true, locked: false,
-           _cv: null, _dirty: true };
+           opacity: 1, visible: true, locked: false };
 }
 function syncActiveGrid(){
   var L = state.layers[state.active];
@@ -3483,7 +3559,7 @@ function syncActiveGrid(){
 /* 整块换掉活动层内容（翻转/移动/导入等），必须同时写回图层，否则引用会断 */
 function setActiveGrid(ng){
   var L = activeLayer();
-  if (L){ L.grid = ng; markLayerDirty(L); }
+  if (L) L.grid = ng;
   state.grid = ng;
 }
 function activeLayer(){ return state.layers[state.active] || null; }
@@ -3495,10 +3571,8 @@ function canDraw(){
   if (L.locked){ toast("「" + L.name + "」已锁定，点图层上的锁图标解锁"); return false; }
   return true;
 }
-function markLayerDirty(L){ if (L) L._dirty = true; }
-function markAllLayersDirty(){
-  for (var i = 0; i < state.layers.length; i++) state.layers[i]._dirty = true;
-}
+/* v380：离屏图层缓存已删，这里保留为空操作（历史上 10 处调用点用于清缓存脏标记） */
+function markAllLayersDirty(){}
 function initLayers(patternGrid){
   layerSeq = 0;
   state.layers = [makeLayer("图纸层", "pattern", patternGrid || makeGrid(state.cols, state.rows, false))];
@@ -3517,7 +3591,6 @@ function updateCanvasCursor(){
 function setActiveLayer(i, isRef){
   if (isRef){ state.refActive = true; renderLayerPanel(); updateCanvasCursor(); return; }
   if (i < 0 || i >= state.layers.length) return;
-  if (state.layers[state.active]) markLayerDirty(state.layers[state.active]);
   state.refActive = false;
   state.active = i;
   syncActiveGrid();
@@ -4062,7 +4135,6 @@ function endChange(){
   undoStack.push(before);
   if (undoStack.length > 60) undoStack.shift();
   redoStack.length = 0;
-  markLayerDirty(activeLayer());
   touchThumb();
   saveDraft();
 }
@@ -4117,6 +4189,30 @@ function roundRectPath(c, x, y, w, h, r){
   c.arcTo(x, y, x + w, y, r);
   c.closePath();
 }
+/* v376：色号文字 sprite 缓存 —— key = 色号@字号@深浅，字号变化（缩放）时整体失效重建 */
+var DPRC = Math.min(2, window.devicePixelRatio || 1);
+var codeSpriteCache = {}, codeSpriteFs = "";
+function codeSprite(id, fs, dark, isExport){
+  var fsK = Math.round(fs * 2) / 2;
+  if (codeSpriteFs !== fsK){ codeSpriteCache = {}; codeSpriteFs = fsK; }
+  var key = id + "@" + fsK + "@" + dark + (isExport ? "x" : "");
+  if (codeSpriteCache[key]) return codeSpriteCache[key];
+  var pad = 3;
+  var cv = document.createElement("canvas");
+  var c0 = cv.getContext("2d");
+  var font = (isExport ? "400 " : "500 ") + fsK.toFixed(1) + "px -apple-system,'PingFang SC',sans-serif";
+  c0.font = font;
+  var tw = Math.ceil(c0.measureText(id).width) + pad * 2;
+  var th = Math.ceil(fsK * 1.5);
+  cv.width = Math.ceil(tw * DPRC); cv.height = Math.ceil(th * DPRC);
+  c0 = cv.getContext("2d");
+  c0.scale(DPRC, DPRC);
+  c0.font = font; c0.textAlign = "left"; c0.textBaseline = "middle";
+  c0.fillStyle = dark ? "#FFFFFF" : "#1D1D1F";
+  c0.fillText(id, pad, th / 2);
+  codeSpriteCache[key] = cv;
+  return cv;
+}
 /* 单元格绘制：圆豆 / 色块 / 带色号标注（idx = 调色板下标） */
 function drawCell(c, x, y, s, idx, hi, isExport){
   var p = PALETTE[idx];
@@ -4129,10 +4225,19 @@ function drawCell(c, x, y, s, idx, hi, isExport){
     var lum = (rgb[0] * 0.299 + rgb[1] * 0.587 + rgb[2] * 0.114) / 255;
     /* v310：导出模式字号不受 13px 屏幕上限 —— 大格子等比大字 */
     var fs = isExport ? s * 0.44 : Math.max(6, Math.min(s * 0.44, 13));
-    c.font = (isExport ? "400 " : "500 ") + fs.toFixed(1) + "px -apple-system,'PingFang SC',sans-serif";   /* v315：导出字重降一档（大字号视觉笔画更重），画布不变 */
-    c.textAlign = "center"; c.textBaseline = "middle";
-    c.fillStyle = lum >= 0.6 ? "#1D1D1F" : "#FFFFFF";
-    c.fillText(p.id, x + s/2, y + s/2 + 0.5);
+    /* v376：色号文字预渲染缓存 —— 104² 缩放时 fillText 上万次是卡顿主因，
+       同 (色号×字号×深浅) 只渲染一次到离屏 canvas，绘制时 drawImage 贴上（快 3~5 倍） */
+    var dark = lum >= 0.6 ? 0 : 1;
+    var spr = codeSprite(p.id, fs, dark, isExport);
+    if (spr){
+      c.drawImage(spr, x + s/2 - spr.width / (2 * DPRC), y + s/2 + 0.5 - spr.height / (2 * DPRC),
+                  spr.width / DPRC, spr.height / DPRC);
+    } else {
+      c.font = (isExport ? "400 " : "500 ") + fs.toFixed(1) + "px -apple-system,'PingFang SC',sans-serif";
+      c.textAlign = "center"; c.textBaseline = "middle";
+      c.fillStyle = dark ? "#FFFFFF" : "#1D1D1F";
+      c.fillText(p.id, x + s/2, y + s/2 + 0.5);
+    }
   }
   if (hi){
     /* v296：高亮框按豆色亮度自适应 —— H7/H16 深豆上黑框全部融掉，改白框 */
@@ -4166,39 +4271,27 @@ function drawLayerCells(c, g, cols, rows, s, shx, shy, allowHi){
     }
   }
 }
-/* 非活动层缓存到离屏画布：10 层 × 4 万格逐帧重画会卡，
-   只有内容/缩放/尺寸变化时才重建 */
-var LAYER_BASE = 12;   /* v318：离屏基准分辨率（px/格）—— 必须与 syncCellToCache 共用，曾因 48/24 不一致导致画豆不显示 */
-function layerCanvas(L, cols, rows){
-  /* v312：离屏固定基准分辨率（48px/格），key 不含 zoom —— 缩放只是 drawImage 拉伸，零重画 */
-  var BASE = LAYER_BASE;
-  var bw = cols * BASE, bh = rows * BASE;
-  var d = dprEff(bw, bh);
-  if (L._cv && !L._dirty && L._bw === bw && L._c === cols && L._r === rows &&
-      L._codes === state.showCodes && L._d === d) return L._cv;
-  var cv = L._cv || document.createElement("canvas");
-  cv.width = Math.max(1, Math.round(bw * d));
-  cv.height = Math.max(1, Math.round(bh * d));
-  var cc = cv.getContext("2d");
-  cc.setTransform(d, 0, 0, d, 0, 0);
-  cc.clearRect(0, 0, bw, bh);
-  drawLayerCells(cc, L.grid, cols, rows, BASE, 0, 0, state.highlight >= 0 && L === activeLayer());
-  L._cv = cv; L._dirty = false;
-  L._bw = bw; L._c = cols; L._r = rows; L._codes = state.showCodes;
-  return cv;
-}
+/* v380：非激活层离屏缓存（v312/v318）整体删除。
+   缓存固定 12px/格，高倍缩放时上采样发虚，和激活层的直绘肉眼可见地不一样
+   （用户实测：关掉上层眼睛透出的下层「不是真实的格子」）。
+   逐格成本已被 v376 色号 sprite 缓存压低，所有可见图层直接走 drawLayerCells，
+   激活/非激活由同一函数渲染，逐像素一致；也不再需要 _dirty/_cv 缓存标记。 */
 /* v320：视口在画布坐标中的可见矩形（含离屏/目标物理换算与越界钳制） */
-function viewportInCanvas(sp){
-  var visW = Math.min(canvasScroll.clientWidth, sp.w), visH = Math.min(canvasScroll.clientHeight, sp.h);
-  var cssX = Math.max(0, Math.min(canvasScroll.scrollLeft, sp.w - visW));
-  var cssY = Math.max(0, Math.min(canvasScroll.scrollTop, sp.h - visH));
-  var dg = dprEff(sp.w, sp.h);
-  var lc = layerCanvas(state.layers[state.active], state.cols, state.rows);
-  var scale = lc.width / sp.w;
-  return { sx: cssX * scale, sy: cssY * scale,
-           sw: visW * scale, sh: visH * scale,
-           dx: cssX * dg, dy: cssY * dg, dw: visW * dg, dh: visH * dg };
+/* v378：无限画布虚拟偏移（canvas-pan 的 100vw/100vh padding）——
+   "滚动坐标 → 画布内坐标"必须先减偏移，否则非激活层永远贴在画布错误的一侧 */
+function panOffset(){
+  var fr = canvasFrame.getBoundingClientRect(), srr = canvasScroll.getBoundingClientRect();
+  return { x: fr.left - srr.left + canvasScroll.scrollLeft,
+           y: fr.top - srr.top + canvasScroll.scrollTop };
 }
+/* v379：视口裁剪（v320）整体移除 —— 它有两个致命错误：
+   1) dest 乘了 dpr：setupCanvas 已 setTransform(dpr)，drawImage 的 dest 是 CSS px，
+      多乘一次 → 非激活层被整体放大 1 个 dpr 倍（iPad/视网膜 = 2×），
+      这就是「复制图层后底图变成放大版」。
+   2) 只画可见矩形，但滚动/拖拽平移根本没有重绘入口（全站只有一个 window scroll 监听，
+      还是用来隐藏浮层的）→ 一滚，非激活层就只剩一条残影。
+   改成整层 drawImage，由 GPU 做缩放，坐标永远对；代价是一次全画布 blit，
+   但对比激活层逐格 drawCell（104² = 1 万次）本来就是小头。 */
 /* v321：悬停框元素（JS 创建，canvas-stack 内随格移动） */
 function ensureHoverBox(){
   if (document.getElementById("hoverBox")) return;
@@ -4219,12 +4312,8 @@ function renderGrid(){
     var isAct = (li === state.active && !state.refActive);
     c.save();
     c.globalAlpha = clamp(L.opacity, 0, 1);
-    if (isAct){
-      drawLayerCells(c, L.grid, cols, rows, s, shx, shy, true);
-    } else {
-      var vp = viewportInCanvas(sp);
-      c.drawImage(layerCanvas(L, cols, rows), vp.sx, vp.sy, vp.sw, vp.sh, vp.dx, vp.dy, vp.dw, vp.dh);
-    }
+    /* v380：所有可见图层一律直绘（离屏缓存已删）——激活/非激活同一函数，逐像素一致 */
+    drawLayerCells(c, L.grid, cols, rows, s, isAct ? shx : 0, isAct ? shy : 0, isAct);
     c.restore();
   }
 
@@ -4306,7 +4395,7 @@ function renderGrid(){
     // 外框
     c.lineWidth = Math.max(1.2, Math.min(1.6, s * 0.07));
     c.strokeStyle = "rgba(17,17,20,.38)";
-    c.strokeRect(lw/2, lw/2, sp.w - lw, sp.h - lw);
+    c.strokeRect(lw, lw, sp.w - lw*2, sp.h - lw*2);   /* v354：四周内缩，右/下边缘线不被圆角裁 */
   }
 
   /* 悬停高亮：把「鼠标正下方的那一格」画出来 —— 所见即所画，
@@ -4358,8 +4447,7 @@ function renderRef(){
    ========================================================= */
 function updateLayout(){
   var sp = sizePx();
-  canvasStack.style.width = sp.w + "px";
-  canvasStack.style.height = sp.h + "px";
+  syncStackSize();          /* v359：统一入口（取两画布最大值 + 4px 余量），不再直接设 sp.w */
 
   var needW = sp.w + 44, needH = sp.h + 44;
   var cw = canvasScroll.clientWidth, ch = canvasScroll.clientHeight;
@@ -4394,20 +4482,37 @@ function renderAll(){
 /* =========================================================
    缩放
    ========================================================= */
+var zoomRAF = false, zoomPending = null;
 function setZoom(z, centerKeep){
+  /* v376：rAF 节流 —— 连续滚轮缩放时每帧最多重绘一次（104² 全量重绘 ~30ms，逐事件重绘必卡） */
+  zoomPending = { z: z, centerKeep: centerKeep };
+  if (zoomRAF) return;
+  zoomRAF = true;
+  requestAnimationFrame(function(){
+    zoomRAF = false;
+    var p = zoomPending; zoomPending = null;
+    if (p) setZoomNow(p.z, p.centerKeep);
+  });
+}
+function setZoomNow(z, centerKeep){
   z = clamp(z, MIN_ZOOM, MAX_ZOOM);
   var sc = canvasScroll;
   var cx = 0.5, cy = 0.5, cellBefore = cellPx();
+  var fo = 0, fT = 0;   /* v375：无限画布的虚拟偏移（canvas-pan 的 100vw/100vh padding）——
+    缩放中心公式必须减掉它，否则放大后画布坐标跳位 */
   if (centerKeep){
-    cx = (sc.scrollLeft + sc.clientWidth / 2) / Math.max(1, state.cols * cellBefore);
-    cy = (sc.scrollTop + sc.clientHeight / 2) / Math.max(1, state.rows * cellBefore);
+    var fr = canvasFrame.getBoundingClientRect(), srr = sc.getBoundingClientRect();
+    fo = fr.left - srr.left + sc.scrollLeft;
+    fT = fr.top - srr.top + sc.scrollTop;
+    cx = (sc.scrollLeft + sc.clientWidth / 2 - fo) / Math.max(1, state.cols * cellBefore);
+    cy = (sc.scrollTop + sc.clientHeight / 2 - fT) / Math.max(1, state.rows * cellBefore);
   }
   state.zoom = z;
   renderAll();
   if (centerKeep){
     var cp = cellPx();
-    sc.scrollLeft = cx * state.cols * cp - sc.clientWidth / 2;
-    sc.scrollTop = cy * state.rows * cp - sc.clientHeight / 2;
+    sc.scrollLeft = cx * state.cols * cp - sc.clientWidth / 2 + fo;
+    sc.scrollTop = cy * state.rows * cp - sc.clientHeight / 2 + fT;
   }
   saveDraft();
 }
@@ -4422,8 +4527,14 @@ function fitZoom(){
    但点「1:1」或「适应屏幕」时必须能一步找回原位。 */
 function centerCanvas(){
   var sc = canvasScroll;
-  sc.scrollLeft = Math.max(0, (sc.scrollWidth - sc.clientWidth) / 2);
-  sc.scrollTop  = Math.max(0, (sc.scrollHeight - sc.clientHeight) / 2);
+  var po = panOffset();   /* v378：减虚拟偏移后才是"画布居中" */
+  var sp = sizePx();   /* v379：全局没有 sp() 函数，旧写法一进来就 ReferenceError */
+  /* v381：去掉 max(0,…) 钳制 —— 画布比视口小时 (sp.w-cw)/2 是负数，
+     本来就该往回滚半个差值让它居中；钳成 0 会把画布贴到视口左边（开新图必现）。
+     无限画布两侧各有 100vw 虚拟空间，负偏移合法；且 100vw - cw/2 恒 > 0，scrollLeft 不会为负。
+     （v302 的 flex safe center 在 pan 溢出时退化为贴左，帮不上忙，居中只能靠这里的滚动。） */
+  sc.scrollLeft = po.x + (sp.w - sc.clientWidth) / 2;
+  sc.scrollTop  = po.y + (sp.h - sc.clientHeight) / 2;
 }
 
 /* =========================================================
@@ -4527,18 +4638,6 @@ function shiftGrid(dx, dy){
   }
   setActiveGrid(ng);
 }
-/* v311：单格增量同步到激活层缓存 —— 画豆/擦除不再触发 4 万格全量重画 */
-function syncCellToCache(cell){
-  var L = activeLayer();
-  if (!L || !L._cv || L._dirty) return;
-  if (L._bw !== state.cols * LAYER_BASE || L._c !== state.cols || L._r !== state.rows || L._codes !== state.showCodes) return;
-  var cc = L._cv.getContext("2d");
-  var s = LAYER_BASE;
-  var x = (cell.i % state.cols) * s, y = ((cell.i / state.cols) | 0) * s;
-  var v = state.grid[cell.i];
-  if (v){ drawCell(cc, x, y, s, v - 1, false, false); }
-  else { cc.clearRect(x, y, s, s); }
-}
 function applyAt(cell, isStart){
   var g = state.grid, t = state.tool, v;
   if (t === "replace"){
@@ -4554,11 +4653,11 @@ function applyAt(cell, isStart){
   if (t === "pencil" || t === "rect" || t === "line"){
     v = state.colorIdx + 1;
     if (g[cell.i] === v) return false;
-    g[cell.i] = v; syncCellToCache(cell); return true;
+    g[cell.i] = v; return true;
   }
   if (t === "eraser"){
     if (g[cell.i] === 0) return false;
-    g[cell.i] = 0; syncCellToCache(cell); return true;
+    g[cell.i] = 0; return true;
   }
   if (t === "fill"){
     if (!isStart) return false;
@@ -4925,6 +5024,10 @@ gridCanvas.addEventListener("pointerup", endPointer);
 gridCanvas.addEventListener("pointercancel", endPointer);
 gridCanvas.addEventListener("pointerleave", function(){
   setPos("");
+  /* v382：DOM 悬停框也要藏起来 —— 旧代码只清了 hoverCell 重绘画布，
+     白框元素却冻结在最后一个格子上（鼠标移开后仍留着，用户实测抓到） */
+  var hb = document.getElementById("hoverBox");
+  if (hb) hb.style.display = "none";
   if (hoverCell >= 0){ hoverCell = -1; renderGrid(); }
 });
 gridCanvas.addEventListener("contextmenu", function(e){ e.preventDefault(); });
@@ -5118,7 +5221,6 @@ function updateStats(){
       row.addEventListener("click", function(){
         var idx = parseInt(row.getAttribute("data-idx"), 10);
         state.highlight = (state.highlight === idx) ? -1 : idx;
-        markLayerDirty(activeLayer());   /* v317：高亮框已进缓存，切换选中需重画激活层 */
         renderGrid(); updateStats();
       });
       row.addEventListener("dblclick", function(){
@@ -5813,7 +5915,17 @@ function warmSkinImage(src, cb){
   for (i = 0; i < n; i++){
     var m2 = mask[i]; if (m2 <= 0.002) continue;
     var pr = d[i * 4], pg = d[i * 4 + 1], pb = d[i * 4 + 2];
-    var wr = pr * 1.08 + 4, wg = pg * 1.01, wb = pb * 0.85;
+    /* v365：暖度回到 v363 水平（R×1.08+4 保饱和，B 0.89 折中），
+     色相"黄→粉"靠微降 G 实现——降 G 把色相往品红方向移，而不是砍 B 的饱和度 */
+    var wr = pr * 1.08 + 4, wg = pg * 0.99, wb = pb * 0.89;
+    /* v368：提亮一档 + 保饱和 —— 等比提亮会降饱和（发灰），
+     所以先把各通道与亮度均值的差放大 1.04 补回色度，再整体提亮 7% */
+    var Yw = 0.299 * wr + 0.587 * wg + 0.114 * wb;
+    wr = Yw + (wr - Yw) * 1.04;
+    wg = Yw + (wg - Yw) * 1.04;
+    wb = Yw + (wb - Yw) * 1.04;
+    wr *= 1.04; wg *= 1.04; wb *= 1.04;   /* v370：1.12 过冲（高光 H19、肤色 E14）→ 回调，
+     目标色号锚点：高光 E16 / 肤色 E11 */
     d[i * 4]     = clamp(Math.round(pr + (wr - pr) * m2), 0, 255);
     d[i * 4 + 1] = clamp(Math.round(pg + (wg - pg) * m2), 0, 255);
     d[i * 4 + 2] = clamp(Math.round(pb + (wb - pb) * m2), 0, 255);
@@ -6163,7 +6275,9 @@ function autoCells(st, n){
 }
 /* 候选色数：分辨率越高、画面色彩越丰富，给的色越多（52 格约 80、104 格约 120，再由丰富度缩放） */
 function autoPaletteK(cols, rows, lab){
-  var base = 34 + 0.85 * Math.max(cols, rows);
+  /* v363：对标竞品（88² 仅 24~35 色）—— 原 0.85 系数让 88² 算到 108 色，图碎；
+     收紧到 0.30，小图克制色数换干净，大图按边长线性放开 */
+  var base = 18 + 0.30 * Math.max(cols, rows);
   var n = lab.length / 3, step = Math.max(1, Math.floor(n / 4000)), i;
   var seen = {}, hn = 0;
   for (i = 0; i < n; i += step){
@@ -6408,6 +6522,7 @@ function ditherWeights(lab, cols, rows, D, m, assign){
   for (y = 0; y < rows; y++){
     for (x = 0; x < cols; x++){
       i = y * cols + x;
+      var L0 = lab[i * 3];
       /* 平涂保护：抖动前的初分配里，若有两个以上邻居同色 → 这是块面内部，坚决不抖 */
       var sameNb = 0;
       if (x > 0 && assign[i - 1] === assign[i]) sameNb++;
@@ -6415,7 +6530,15 @@ function ditherWeights(lab, cols, rows, D, m, assign){
       if (y > 0 && assign[i - cols] === assign[i]) sameNb++;
       if (y < rows - 1 && assign[i + cols] === assign[i]) sameNb++;
       if (sameNb >= 2){ w[i] = 0; continue; }
-      var L = lab[i * 3], bd = Infinity, o = i * m;
+      /* v366：硬边相邻保护 —— 紧贴亮度差>15 的邻格（黑帽/灰背景这类边界两侧）不抖：
+         误差扩散在硬边处会把深色"撒"进浅色区，造成边界锯齿+碎点 */
+      var edgeNb = 0;
+      if (x > 0 && Math.abs(L0 - lab[(i - 1) * 3]) > 15) edgeNb++;
+      if (x < cols - 1 && Math.abs(L0 - lab[(i + 1) * 3]) > 15) edgeNb++;
+      if (y > 0 && Math.abs(L0 - lab[(i - cols) * 3]) > 15) edgeNb++;
+      if (y < rows - 1 && Math.abs(L0 - lab[(i + cols) * 3]) > 15) edgeNb++;
+      if (edgeNb >= 1){ w[i] = 0; continue; }
+      var L = L0, bd = Infinity, o = i * m;
       for (j = 0; j < m; j++){ var v = D[o + j]; if (v < bd) bd = v; }
       var resid = Math.sqrt(bd);                          /* 离最近豆色多远：越远越需要抖 */
       var gs = 0, gc = 0;
@@ -6425,7 +6548,7 @@ function ditherWeights(lab, cols, rows, D, m, assign){
       if (y < rows - 1){ gs += Math.abs(L - lab[(i + cols) * 3]); gc++; }
       var g = gc ? gs / gc : 0;                           /* 局部亮度梯度 */
       /* 太平（平涂）不抖、太陡（硬边）不抖，中间的平缓渐变才抖 */
-      var smooth = clamp((g - 0.5) / 3.5, 0, 1) * clamp((15 - g) / 9, 0, 1);
+      var smooth = clamp((g - 0.5) / 3.5, 0, 1) * clamp((28 - g) / 18, 0, 1);   /* v363：硬边阈值 15→28，虹膜/眼线等中高频细节纳入抖动 */
       w[i] = smooth * clamp(resid / 6.5, 0, 1);
     }
   }
@@ -6831,8 +6954,42 @@ function imageToPattern(skipChange){
       a2 = icmSmooth(D2, cols, rows, 4, 2, lamMap);
     }
     for (i = 0; i < n; i++) codes[i] = S2[a2[i]];
+    /* v368：色带整理 —— 抖动后把"低对比的碎刺/散点"并入邻域主色，恢复色带的整齐；
+   高对比点缀（白高光、亮眼）色差远超阈值，不会被误清 */
+function bandTidy(codes, cols, rows, lab, passes){
+  for (var p = 0; p < passes; p++){
+    var out = new Int32Array(codes.length);
+    for (var y = 0; y < rows; y++){
+      for (var x = 0; x < cols; x++){
+        var i = y * cols + x;
+        var c = codes[i];
+        var cnt = {}, maxC = c, maxN = 0;
+        for (var dy = -1; dy <= 1; dy++){
+          for (var dx = -1; dx <= 1; dx++){
+            var nx = x + dx, ny = y + dy;
+            if (nx < 0 || ny < 0 || nx >= cols || ny >= rows) continue;
+            var v = codes[ny * cols + nx];
+            cnt[v] = (cnt[v] || 0) + 1;
+            if (cnt[v] > maxN){ maxN = cnt[v]; maxC = v; }
+          }
+        }
+        if (maxC === c){ out[i] = c; continue; }
+        /* 色差：与多数色的 Lab 距离——小（同色带内的量化噪声）才并入 */
+        var cl = lab[c * 3], ca = lab[c * 3 + 1], cb = lab[c * 3 + 2];
+        var ml = lab[maxC * 3], ma = lab[maxC * 3 + 1], mb = lab[maxC * 3 + 2];
+        var dist = Math.sqrt((cl - ml) * (cl - ml) + (ca - ma) * (ca - ma) + (cb - mb) * (cb - mb));
+        out[i] = (maxN >= 5 && dist < 12) ? maxC : c;
+      }
+    }
+    codes = out;
+  }
+  return codes;
+}
+/* v366：抖动开也温和清理孤立碎点（帽子黑区碎点的来源之一）——
+       抖动开的清理阈值更保守，只清真正的孤岛，保留有意的颗粒 */
+    codes = despeckle(codes, cols, rows, 10, 2, lab);
+    codes = bandTidy(codes, cols, rows, lab, 2);   /* v368：色带整理——大色区边缘整齐化 */
     if (!state.dither){
-      codes = despeckle(codes, cols, rows, 10, 2, lab);
       codes = fragClean(codes, cols, rows, 8, 4, 2, lab);
     }
     codes = hueGuard(codes, cols, rows, lab);   /* v147：暗部色相守卫（栗色家族矫正） */
@@ -6852,7 +7009,6 @@ function imageToPattern(skipChange){
     }
   }
   PL.visible = true;
-  markLayerDirty(PL);
   syncActiveGrid();
   if (!skipChange) endChange();
   lastDiag = diagnose(rawCells, codes, cols, rows, kind, r);
@@ -7614,7 +7770,9 @@ function exportMirrorPNG(au, cb){
   var L = sheetLayout(st);
   /* 分辨率算法与 exportPNG 的桌面分支保持一致（v126 起的格子区域判定） */
   var gw = state.cols * L.EX, gh = state.rows * L.EX;
-  var d = (gw * gh > 25e6 || gw > 8400 || gh > 8400) ? 1 : 2;
+  /* v377：与 exportPNG 桌面分支一致（sheetStep 整数倍 1x/2x）——旧判定阈值不同，
+     某些尺寸下正常图 1x、镜像图 2x，导致镜像比正常大一倍 */
+  var d = sheetStep(L);
   var pxW = L.W * d, pxH = L.H * d;
   var saved = state.grid;
   state.grid = mirroredGridArray();
@@ -8724,7 +8882,7 @@ function projectJSON(name){
 /* v151：标题带上版本号。改完代码后浏览器常拿着缓存的旧 HTML 继续跑，
    界面上却没有任何地方能看出当前跑的是哪一版，于是「明明改了却还是老样子」很难判断。
    标签页标题一眼可核对（也顺带出现在 Safari/Chrome 的分享标题里）。 */
-var APP_VER = "v348";
+var APP_VER = "v382";
 try{ }catch(e){}
 
 /* v167：回退到「改灰色之前」= v163 的 studio（单层轻白卡）为默认。
@@ -10353,6 +10511,7 @@ function bindUI(){
   // 键盘
   document.addEventListener("keydown", function(e){
     if (/input|select|textarea/i.test(e.target.tagName)) return;
+    if (e.target.isContentEditable) return;   /* v374：改名等编辑态打字不触发快捷键（"x"=清空图层） */
     var k = e.key.toLowerCase();
     if (k === "escape" && (openDrawer || document.querySelector(".layer-panel.open"))){
       closeAllOverlays(); return;
@@ -10453,6 +10612,40 @@ function setTool(t){
 /* =========================================================
    启动
    ========================================================= */
+/* v355：数字输入框的自绘上下微调按钮（替代无法定制的原生 spinner） */
+function ensureNumSteppers(){
+  var list;
+  try{ list=document.querySelectorAll('input[type=number]'); }catch(e){ return; }
+  for (var i=0;i<list.length;i++){
+    var inp=list[i];
+    if (inp._numStep) continue;
+    var host=inp.parentNode;
+    if (!host) continue;
+    if (getComputedStyle(host).position === 'static') host.style.position='relative';
+    var box=document.createElement('div');
+    box.className='num-step';
+    var up=document.createElement('button'); up.type='button'; up.setAttribute('aria-label','增加');
+    up.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 15l7-7 7 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    var dn=document.createElement('button'); dn.type='button'; dn.setAttribute('aria-label','减少');
+    dn.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 9l7 7 7-7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+    (function(inp2){
+      up.addEventListener('click', function(e){ e.preventDefault(); e.stopPropagation();
+        try{ inp2.stepUp(); }catch(err){}
+        inp2.dispatchEvent(new Event('input',{bubbles:true}));
+        inp2.dispatchEvent(new Event('change',{bubbles:true}));
+      });
+      dn.addEventListener('click', function(e){ e.preventDefault(); e.stopPropagation();
+        try{ inp2.stepDown(); }catch(err){}
+        inp2.dispatchEvent(new Event('input',{bubbles:true}));
+        inp2.dispatchEvent(new Event('change',{bubbles:true}));
+      });
+    })(inp);
+    box.appendChild(up); box.appendChild(dn);
+    host.appendChild(box);
+    inp._numStep=1;
+    inp.style.paddingRight='22px';
+  }
+}
 function init(){
   ensureHoverBox();
   updateDeviceClass();            /* 布局形态要在首次渲染前定下来 */
@@ -10494,7 +10687,10 @@ function init(){
   setTool("pencil");
   renderAll();
   renderLayerPanel();
-  fitZoom();
+  /* v352：fitZoom 延迟到布局稳定后（双帧）—— init 时面板/画布尺寸未定型，
+     提前计算会拿到错误视口导致画布偏移（左/上边缘格子被裁） */
+  requestAnimationFrame(function(){ requestAnimationFrame(function(){ fitZoom(); }); });
+  ensureNumSteppers();
   installDraftButton();          /* v80：草稿箱入口（仅平板；桌面由 installToolbar 装「草稿箱」） */
   installToolbar();              /* v96/v98：顶栏信息/动作分组，桌面缩放组下沉工具栏 */
   applyThemeColor();             /* v188：系统标题栏染成页面底色，去掉顶部那条白条 */
