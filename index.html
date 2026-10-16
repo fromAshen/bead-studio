@@ -5,8 +5,6 @@
      原有 pnid 注释一字不动地保留。 -->
 <html lang="zh-CN" class="skin-studio">
 <head>
-<script src="/page/page_comm/inject.js">
-</script>
 <script>
 /* v326：布局首帧预置 —— 复刻 isTouchDevice+isTabletLayout 判定，在任何渲染前
    预置 touch/tablet class（否则 iPad 首帧按桌面三栏渲染再跳抽屉布局，闪变） */
@@ -15,7 +13,11 @@
   var touch = (navigator.maxTouchPoints || 0) > 0 || "ontouchstart" in window;
   var w0 = window.innerWidth, h0 = window.innerHeight;
   var tablet = touch && Math.min(w0, h0) > 600 && ((w0 < h0) || Math.max(w0, h0) < 900);
+  /* v385：iPad 横屏但宽度不足以摆三栏（Air 11"=1180 / Pro 11"=1194 / mini=1133）
+     预置 tland 类，避免首帧按桌面三栏渲染再跳抽屉（同 v326 的防闪变思路） */
+  var tland = touch && !tablet && Math.min(w0, h0) > 600 && Math.max(w0, h0) < 1280;
   if (tablet) d.classList.add("tablet");
+  if (tland) d.classList.add("tland");
   if (touch) d.classList.add("touch");
 })();
 </script>
@@ -2395,6 +2397,84 @@ html.tablet .pal{grid-template-columns:repeat(auto-fill,minmax(56px,1fr))}
    input 自身再叠一层白 6% 会形成"数字背后的亮块"（双层叠加） */
 html.skin-studio .dim-field input[type=number],
 html.skin-studio .dim-field input[type=text]{background:transparent;box-shadow:none}
+
+/* =====================================================================
+   v383 · iPad 控件规格纠偏（用户逐项实测反馈，一次收敛；放末尾保证覆盖历史规则）
+   对照 ui-kit：开关 38×22 全胶囊、滑杆轨道 4px + 14 白球、色块正方形。
+   全部限定 html.tablet，桌面端不受影响。
+   ===================================================================== */
+/* ① 开关（显示网格/格内色号）：40×24、圆角 10 非胶囊 → 38×22 全胶囊、球 18 */
+html.tablet .sw .track{width:38px;height:22px;border-radius:999px}
+html.tablet .sw .track::after{width:18px;height:18px;top:2px;left:2px}
+
+/* ② 精简用色滑杆：输入框透明无框无圆角（去掉「很宽的背景」），
+      轨道 4px 半透明灰（不再纯白），球 14 白 */
+html.tablet input[type=range],
+html.tablet .fld input[type=range]{
+  -webkit-appearance:none;appearance:none;
+  height:22px;background:transparent;border:0;box-shadow:none;border-radius:0;
+}
+html.tablet input[type=range]::-webkit-slider-runnable-track,
+html.tablet .fld input[type=range]::-webkit-slider-runnable-track{
+  -webkit-appearance:none;height:4px;border-radius:2px;background:rgba(242,244,248,.18);border:0;
+}
+html.tablet input[type=range]::-webkit-slider-thumb,
+html.tablet .fld input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:14px;height:14px;margin-top:-5px;border-radius:50%;
+  background:#F2F4F8;border:0;box-shadow:0 1px 3px rgba(0,0,0,.35);
+}
+html.tablet input[type=range]::-moz-range-track,
+html.tablet .fld input[type=range]::-moz-range-track{height:4px;border-radius:2px;background:rgba(242,244,248,.18);border:0}
+html.tablet input[type=range]::-moz-range-thumb,
+html.tablet .fld input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:#F2F4F8;border:0}
+
+/* ③ 图层操作条三键（复制/合并/删除）：32px → 26px */
+html.tablet .layer-panel .lp-act{height:26px;font-size:var(--fs-sm)}
+
+/* ④ 不透明度滑杆：球 14 → 12（在 28px 卡片里显大），轨道 3px */
+html.tablet .layer-panel input[type=range].lp-op-range{height:20px;background:transparent;border:0;box-shadow:none}
+html.tablet .layer-panel input[type=range].lp-op-range::-webkit-slider-runnable-track{height:3px;border-radius:2px;background:rgba(242,244,248,.18)}
+html.tablet .layer-panel input[type=range].lp-op-range::-webkit-slider-thumb{width:12px;height:12px;margin-top:-4.5px;background:#F2F4F8;box-shadow:0 1px 2px rgba(0,0,0,.35)}
+html.tablet .layer-panel input[type=range].lp-op-range::-moz-range-thumb{width:12px;height:12px}
+
+/* ⑤ 色板色块：grid-auto-rows:28px + aspect-ratio:auto 压成 60×28 长条 →
+      恢复正方形、按面板宽度自适应列数（≥44px/格，一行放几个就放几个） */
+html.tablet .pal{grid-template-columns:repeat(auto-fill,minmax(44px,1fr));grid-auto-rows:auto;gap:6px}
+html.tablet .pal .sw2{aspect-ratio:1/1;height:auto;width:100%;border-radius:var(--r-sm)}
+
+/* =====================================================================
+   v385 · iPad 横屏抽屉布局（html.tland）
+   Air 11" 横屏 1180×820 落桌面三栏太挤：画布只剩 534px、底部工具坞横向滚动、
+   新建图层钮被 html.touch 撑成 38px 大圆。本形态只把两侧面板收成抽屉，
+   顶栏/底部工具坞/图层位置全部沿用桌面结构（installToolbar 走桌面分支），
+   与桌面端 UI 保持统一。放末尾保证覆盖；全部限定 html.tland，桌面不受影响。
+   ===================================================================== */
+html.tland{--s-canvas:14px;--s-frame:10px}
+html.tland .app{height:100dvh;padding:10px;
+  padding-top:calc(10px + env(safe-area-inset-top));
+  padding-right:calc(10px + env(safe-area-inset-right));
+  padding-bottom:calc(10px + env(safe-area-inset-bottom));
+  padding-left:calc(10px + env(safe-area-inset-left));}
+html.tland .layout{position:relative;overflow:hidden}
+/* 抽屉入口（顶栏「设置 / 色板」）：桌面默认 display:none，tland 显示 */
+html.tland .drawer-btn{display:inline-flex}
+/* 两侧面板 → 抽屉：左=设置，右=图层+图例+色板（桌面右栏同构，不按 data-mode 裁剪） */
+html.tland .panel.left,html.tland .panel.right{
+  position:absolute;top:0;bottom:0;z-index:40;width:292px;flex:0 0 292px;
+  border-radius:0;border:none;
+  transform:translateX(-102%);transition:transform .26s cubic-bezier(.2,.8,.3,1);
+}
+html.tland .panel.right{left:auto;right:0;width:322px;flex:0 0 322px;transform:translateX(102%)}
+html.tland .panel.left.open,html.tland .panel.right.open{transform:translateX(0)}
+html.tland .drawer-mask{position:absolute;left:0;right:0;top:0;bottom:0;
+  background:rgba(10,14,22,.45);opacity:0;transition:opacity .22s;z-index:30}
+html.tland .drawer-mask.show{opacity:1}
+html.tland .drawer-mask[hidden]{display:none}   /* 选择器权重高于 [hidden] 默认值，必须显式写回 */
+/* 底部工具坞：桌面同款胶囊；只抬离 home indicator（原 bottom:14px 距离不够） */
+html.tland .dock{bottom:calc(14px + env(safe-area-inset-bottom))}
+/* 图层新建钮：html.touch 撑的 38px 大圆 → 28px（命中够用，不再像圆圈） */
+html.tland .lp-add{width:28px;height:28px}
+html.tland .lp-add .ic{width:14px;height:14px}
 </style>
 </head>
 <body>
@@ -3173,30 +3253,44 @@ function isTabletLayout(){
      iPad 半屏分屏（507×738）落到手机堆叠布局，也是合理的。 */
   var w = window.innerWidth, h = window.innerHeight;
   if (!isTouchDevice() || Math.min(w, h) <= 600) return false;
-  return (w < h) || Math.max(w, h) < 900;   /* v348：横屏走桌面三栏，只有竖屏/窄屏才抽屉 */
+  return (w < h) || Math.max(w, h) < 900;   /* v348：竖屏/窄屏走抽屉 */
+}
+/* v385：iPad 横屏第三形态（tland）。
+   Air 11" 横屏 1180×820 原来落进桌面三栏：左右面板+间距吃掉 670px，画布只剩 534px，
+   底部工具坞被压成横向滚动（左右看不全）、新建图层钮被 html.touch 撑成 38px 大圆。
+   1180~1194 这档宽度摆不下三栏，但比竖屏富裕——只把两侧面板收成抽屉，
+   其余（顶栏/底部工具坞/图层并入右抽屉）全部沿用桌面结构，与桌面端 UI 保持统一。
+   阈值 1280：≥1280（12.9"/13" 横屏 1366/1376）三栏摆得下，维持桌面三栏。 */
+function isTabletLandscape(){
+  var w = window.innerWidth, h = window.innerHeight;
+  if (!isTouchDevice() || Math.min(w, h) <= 600) return false;
+  return (w >= h) && Math.max(w, h) < 1280;
 }
 /* 当前是否处于平板形态（读 html 上的 .tablet 类）。
    与 isTabletLayout() 区分：后者按视口/触摸「判定」该走哪个形态，这个是读当前实际形态。 */
 function isTablet(){ return document.documentElement.classList.contains("tablet"); }
+function isTLand(){ return document.documentElement.classList.contains("tland"); }
 function updateDeviceClass(){
-  var d = document.documentElement, was = d.classList.contains("tablet");
+  var d = document.documentElement, wasT = d.classList.contains("tablet"), wasL = d.classList.contains("tland");
   d.classList.toggle("touch", isTouchDevice());
   d.classList.toggle("tablet", isTabletLayout());
+  d.classList.toggle("tland", isTabletLandscape());
   var now = d.classList.contains("tablet");
-  /* iPad 专属常驻元素：右缘色板条 + 竖栏里的图层按钮 */
+  /* iPad 专属常驻元素：右缘色板条 + 竖栏里的图层按钮。
+     tland（横屏抽屉）不用它们：图层在右抽屉里（桌面同构），右缘竖栏不出现 */
   var pr = $("padDockR");
   if (pr) pr.hidden = !now;
   var lp = $("btnLayerPad"), ld = $("layerDiv");
   if (lp) lp.hidden = !now;
   if (ld) ld.hidden = !now;
-  if (was && !now){
-    setDrawer(null);                        /* 退出平板形态时别留着开着的抽屉 */
+  if ((wasT && !now) || (wasL && !d.classList.contains("tland"))){
+    setDrawer(null);                        /* 退出抽屉形态时别留着开着的抽屉 */
     var lpp = document.querySelector(".layer-panel");
     if (lpp) lpp.classList.remove("open");
     var pb = $("btnLayerPad");
     if (pb) pb.classList.remove("active");
   }
-  return was !== now;
+  return wasT !== now || wasL !== d.classList.contains("tland");
 }
 
 /* ---------- 平板抽屉：左=参数、右=色板 ---------- */
@@ -4520,7 +4614,10 @@ function fitZoom(){
   var sp0 = { w: state.cols * CELL, h: state.rows * CELL };
   var padX = 66, padY = 66;
   var z = Math.min((canvasScroll.clientWidth - padX) / sp0.w, (canvasScroll.clientHeight - padY) / sp0.h);
-  setZoom(clamp(z, MIN_ZOOM, MAX_ZOOM), false);
+  /* v384：必须走同步的 setZoomNow —— setZoom 已被 v376 改成 rAF 节流（缩放下帧才生效），
+     而 centerCanvas 是同步执行的：用旧缩放的画布尺寸算滚动 → 第一次点必偏，点第二次才居中。
+     一次性动作（适应屏幕/1:1/双指结算）不需要节流，节流只服务滚轮/步进器的连续缩放。 */
+  setZoomNow(clamp(z, MIN_ZOOM, MAX_ZOOM), false);
   centerCanvas();
 }
 /* v72：把画布挪回正中。画布可以随便拖（拖出可视区也正常），
@@ -4712,7 +4809,7 @@ function pinchPreview(k, dx, dy){
 function pinchCommit(nz, mx, my){
   var f = canvasFrame;
   f.style.transform = ""; f.style.transformOrigin = "";
-  setZoom(nz, false);
+  setZoomNow(nz, false);   /* v384：同步生效，下面立刻读 getBoundingClientRect 才是新布局 */
   var r = f.getBoundingClientRect();
   canvasScroll.scrollLeft += (r.left + pinch.u * r.width) - mx;
   canvasScroll.scrollTop  += (r.top  + pinch.v * r.height) - my;
@@ -8882,7 +8979,7 @@ function projectJSON(name){
 /* v151：标题带上版本号。改完代码后浏览器常拿着缓存的旧 HTML 继续跑，
    界面上却没有任何地方能看出当前跑的是哪一版，于是「明明改了却还是老样子」很难判断。
    标签页标题一眼可核对（也顺带出现在 Safari/Chrome 的分享标题里）。 */
-var APP_VER = "v382";
+var APP_VER = "v385";
 try{ }catch(e){}
 
 /* v167：回退到「改灰色之前」= v163 的 studio（单层轻白卡）为默认。
@@ -10472,7 +10569,7 @@ function bindUI(){
   $("btnZoomOut").addEventListener("click", function(){ setZoom(state.zoom / 1.2, true); });
   /* v72：1:1 = 回到 100%「并居中复位」。原来用 centerKeep 保持当前中心，
      画布被拖走之后点 1:1 还在原地，用户找不到画板在哪。 */
-  $("btnZoom100").addEventListener("click", function(){ setZoom(1, false); centerCanvas(); });
+  $("btnZoom100").addEventListener("click", function(){ setZoomNow(1, false); centerCanvas(); });   /* v384：同步，同 fitZoom */
   $("btnFit").addEventListener("click", fitZoom);
   /* 平板抽屉 */
   $("btnDrawerL").addEventListener("click", function(){ toggleDrawer("left"); });
@@ -10557,16 +10654,47 @@ function bindUI(){
     if (e.key === " "){ spaceDown = false; gridCanvas.style.cursor = "crosshair"; }
   });
 
-  /* 平板形态变了（横竖屏切换 / 分屏）要重新适应画布 */
+  /* 平板形态变了（横竖屏切换 / 分屏）要重新适应画布。
+     v385：形态翻转（tablet↔tland↔桌面）时工具栏分支已经定型（installToolbar 只跑一次，
+     缩放组搬去哪儿不可逆），不再原地硬切 —— 延迟确认后存稿重载，保证结构一致。
+     v385：开机 2s 内视口还会动（Safari 工具栏收放 / standalone 状态栏回落 / 转屏余波），
+     这期间的 resize 直接重新校准画布 —— 之前只有形态翻转才 fitZoom，视口变了画布
+     还停在旧尺寸算出的位置上，就是「打开不居中、过一会儿才正常」的根源。 */
+  var bootAt = Date.now();
+  var formFlipT = null;
+  function formKey(){
+    return (document.documentElement.classList.contains("tablet") ? "T" : "") +
+           (document.documentElement.classList.contains("tland") ? "L" : "") + "D";
+  }
   window.addEventListener("resize", function(){
-    if (updateDeviceClass()) fitZoom();
+    var before = formKey();
+    updateDeviceClass();
+    if (formKey() !== before){
+      clearTimeout(formFlipT);
+      formFlipT = setTimeout(function(){
+        updateDeviceClass();
+        if (formKey() !== before){
+          try{ if (typeof saveDraftNow === "function") saveDraftNow(); }catch(e){}
+          location.reload();               /* 形态切换：重载拿一致的 toolbar 分支 */
+          return;
+        }
+        fitZoom(); updateLayout(); fitPadDock(); placeEraseMenu();
+      }, 260);
+      return;
+    }
+    if (Date.now() - bootAt < 2000) fitZoom();   /* 开机校准窗口 */
     updateLayout();
     fitPadDock();   /* v121：右栏多了缩放组，矮横屏要切紧凑档，别顶出屏幕 */
     placeEraseMenu();   /* v124：工具条折行后橡皮按钮位置变了，菜单要重新夹一次 */
   });
-  /* 转屏时 resize 往往早于可视口真正换过来，补一次延迟测量 */
+  /* 转屏时 resize 往往早于可视口真正换过来，补一次延迟测量。
+     v385：这里原来只跑 updateLayout/fitPadDock，漏了 updateDeviceClass+fitZoom ——
+     resize 先到时尺寸还是旧的、形态没翻转也不 refit，转完屏画布就偏了 */
   window.addEventListener("orientationchange", function(){
-    setTimeout(function(){ updateLayout(); fitPadDock(); }, 280);
+    setTimeout(function(){
+      updateDeviceClass();
+      updateLayout(); fitPadDock(); fitZoom();
+    }, 280);
   });
 }
 /* v124：橡皮二级菜单原本按 eraser 按钮的 offsetLeft 定位。
@@ -10689,7 +10817,12 @@ function init(){
   renderLayerPanel();
   /* v352：fitZoom 延迟到布局稳定后（双帧）—— init 时面板/画布尺寸未定型，
      提前计算会拿到错误视口导致画布偏移（左/上边缘格子被裁） */
-  requestAnimationFrame(function(){ requestAnimationFrame(function(){ fitZoom(); }); });
+  requestAnimationFrame(function(){ requestAnimationFrame(function(){
+    fitZoom();
+    /* v385：开机保险 —— iPad 上首帧后视口/布局还有一次回落（状态栏、工具栏），
+       350ms 后再校一次准。只跑这一次，不影响之后的日常缩放/拖动 */
+    setTimeout(fitZoom, 350);
+  }); });
   ensureNumSteppers();
   installDraftButton();          /* v80：草稿箱入口（仅平板；桌面由 installToolbar 装「草稿箱」） */
   installToolbar();              /* v96/v98：顶栏信息/动作分组，桌面缩放组下沉工具栏 */
