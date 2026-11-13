@@ -711,7 +711,7 @@ html.tablet .panel.right{
 html.tablet .panel.right{right:0;transform:translateX(102%)}
 html.tablet .panel.left.open,html.tablet .panel.right.open{transform:translateX(0)}
 html.tablet .drawer-mask{
-  display:block;position:absolute;inset:0;z-index:30;
+  display:block;position:absolute;inset:0;z-index:30;pointer-events:none;
   background:rgba(0,0,0,.20);opacity:0;transition:opacity .3s;
   -webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);
 }
@@ -2487,7 +2487,7 @@ html.tland .panel.left,html.tland .panel.right{
 }
 html.tland .panel.right{left:auto;right:0;width:322px;flex:0 0 322px;transform:translateX(102%)}
 html.tland .panel.left.open,html.tland .panel.right.open{transform:translateX(0)}
-html.tland .drawer-mask{position:absolute;left:0;right:0;top:0;bottom:0;
+html.tland .drawer-mask{position:absolute;left:0;right:0;top:0;bottom:0;pointer-events:none;
   background:rgba(10,14,22,.45);opacity:0;transition:opacity .22s;z-index:30}
 html.tland .drawer-mask.show{opacity:1}
 html.tland .drawer-mask[hidden]{display:none}   /* 选择器权重高于 [hidden] 默认值，必须显式写回 */
@@ -3363,9 +3363,13 @@ function updateDeviceClass(){
 }
 
 /* ---------- 平板抽屉：左=参数、右=色板 ---------- */
-var openDrawer = null, drawerMode = null;
-/* 图层浮层 / 橡皮二级菜单 / 色板浮层三者互斥：一次只开一个，
-   否则会像之前那样「橡皮菜单和图层浮层可以同时弹出」 */
+var openLeft = false, openRight = false, drawerMode = null, openDrawer = null;
+/* v478：左右抽屉各自独立，互不互斥（用户要同时开着设置与色板选色号）。
+   openDrawer 保留为派生值，仅供 Esc / 设备形态切换判断「有没有抽屉开着」。
+   图层浮层、橡皮二级菜单也不再互相关闭，各自只由用户自己关。 */
+function syncDrawerState(){
+  openDrawer = openLeft ? (openRight ? "both" : "left") : (openRight ? "right" : null);
+}
 function closeLayerPanel(){
   var lp = document.querySelector(".layer-panel");
   if (lp) lp.classList.remove("open");
@@ -3376,35 +3380,40 @@ function closeEraseMenu(){
   var w = $("segWrapPad");
   if (w) w.classList.remove("open");
 }
-function setDrawer(side, mode){
+function setDrawer(side, mode, domOnly){
   var L = document.querySelector(".panel.left"),
       R = document.querySelector(".panel.right"),
       mask = $("drawerMask");
   if (!L || !R || !mask) return;
-  openDrawer = side || null;
-  drawerMode = side === "right" ? (mode || "palette") : null;
-  L.classList.toggle("open", side === "left");
-  R.classList.toggle("open", side === "right");
-  if (side === "right") R.setAttribute("data-mode", drawerMode);
-  $("btnDrawerL").classList.toggle("active", side === "left");
+  /* v478：side 为 null = 全关；否则只切换该侧，另一侧原样保留。
+     domOnly=true 时只同步 DOM（toggleDrawer 关单侧用），不重置状态。 */
+  if (!domOnly){
+    if (!side){ openLeft = false; openRight = false; drawerMode = null; }
+    else if (side === "left") openLeft = true;
+    else if (side === "right"){ openRight = true; drawerMode = mode || "palette"; }
+  }
+  syncDrawerState();
+  L.classList.toggle("open", openLeft);
+  R.classList.toggle("open", openRight);
+  if (openRight) R.setAttribute("data-mode", drawerMode);
+  $("btnDrawerL").classList.toggle("active", openLeft);
   var dr = $("btnDrawerR");
-  if (dr) dr.classList.toggle("active", side === "right");
+  if (dr) dr.classList.toggle("active", openRight);
   /* 右栏两个入口的「打开态」：色号 → 色板，图例图标 → 图例。
      样式是灰底（开关语义），与蓝底的「当前工具」区分，同屏不会出现两个蓝选中态 */
   var pcu = $("padCur"), plg = $("padLegend");
-  if (pcu) pcu.classList.toggle("active", side === "right" && drawerMode === "palette");
-  if (plg) plg.classList.toggle("active", side === "right" && drawerMode === "legend");
-  /* 色板浮层按「二级菜单」处理：不带蒙层（蒙层只给左侧设置抽屉） */
-  if (side) closeEraseMenu();
-  if (side === "right"){
-    closeLayerPanel();
+  if (pcu) pcu.classList.toggle("active", openRight && drawerMode === "palette");
+  if (plg) plg.classList.toggle("active", openRight && drawerMode === "legend");
+  /* v478：开抽屉不再关橡皮菜单 / 图层面板（各自独立，由用户自己关闭）。
+     色板浮层按「二级菜单」处理：不带蒙层（蒙层只给左侧设置抽屉） */
+  if (side === "right" && openRight){
     /* 色板默认全部展开 */
     if (drawerMode === "palette" && typeof palAllCollapsed === "function" && palAllCollapsed()) togglePalAll();
     /* 图例数据只在 renderGrid 链路里刷新（endChange 不刷），打开时补算一次，
        否则从别的入口改过图案再开图例，看到的会是旧数字 */
     if (drawerMode === "legend") updateStats();
   }
-  if (openDrawer === "left"){
+  if (openLeft){
     mask.hidden = false;
     /* display:none → block 与 opacity 同帧改不会触发过渡，必须隔一帧 */
     requestAnimationFrame(function(){ mask.classList.add("show"); });
@@ -3421,7 +3430,9 @@ function setDrawer(side, mode){
    - 点任意【工具】按钮 → 关掉所有浮层（画图需要画布空间，浮层不该赖着）
    - 点【另一个面板入口】 → 切换过去（不是关闭）
    - 点【已展开的那个入口】 → 收起
-   - 点画布 / Esc → 收起所有浮层（工具选择保留） */
+   - v478 起：浮层/面板各自独立，互不互斥；开一个不影响另一个
+   - 点画布、选工具、移动画布都不关任何面板
+   - 关闭只走：再点该面板的入口按钮，或 Esc（一次收起全部） */
 function closeAllOverlays(){
   setDrawer(null);
   closeLayerPanel();
@@ -3429,8 +3440,13 @@ function closeAllOverlays(){
 }
 
 function toggleDrawer(side, mode){
-  if (openDrawer === side && (side !== "right" || drawerMode === (mode || "palette"))) setDrawer(null);
-  else setDrawer(side, mode);
+  /* v478：只切自己这一侧；点已开的入口收起自己，不影响另一侧 */
+  var isOpen = side === "left" ? openLeft : openRight;
+  if (isOpen && (side !== "right" || drawerMode === (mode || "palette"))){
+    if (side === "left") openLeft = false; else openRight = false;
+    syncDrawerState();
+    setDrawer(null, null, true);   /* true = 只同步 DOM，不重置状态 */
+  } else setDrawer(side, mode);
 }
 
 /* ---------- Apple Pencil：笔画格子、手指平移 ----------
@@ -4998,8 +5014,8 @@ canvasScroll.addEventListener("pointerup", function(){
   if (panning){ panning = null; resetCanvasCursor(); }
 });
 gridCanvas.addEventListener("pointerdown", function(e){
-  /* 规范：点画布 → 收起所有浮层与菜单（工具选择保留） */
-  if (openDrawer || document.querySelector(".layer-panel.open")) closeAllOverlays();
+  /* v478：画布操作不收起任何面板 / 菜单。
+     左右抽屉、图层面板、橡皮菜单各自独立，只由用户点对应入口或 Esc 关闭。 */
   if (e.button === 2) return;                 // 右键留给擦除
   /* 触摸时第二根手指不参与绘制（它属于双指手势） */
   if (e.pointerType === "touch" && !e.isPrimary) return;
@@ -9212,7 +9228,7 @@ function projectJSON(name){
 /* v151：标题带上版本号。改完代码后浏览器常拿着缓存的旧 HTML 继续跑，
    界面上却没有任何地方能看出当前跑的是哪一版，于是「明明改了却还是老样子」很难判断。
    标签页标题一眼可核对（也顺带出现在 Safari/Chrome 的分享标题里）。 */
-var APP_VER = "v475";
+var APP_VER = "v478";
 try{ }catch(e){}
 
 /* v167：回退到「改灰色之前」= v163 的 studio（单层轻白卡）为默认。
@@ -10436,6 +10452,13 @@ function newCanvas(){
       state.refOriginal = null; state.warmOn = false; state.skinOk = false;   /* v117 */
       refDraftCache.img = null; refDraftCache.data = "";
       state.refOff.x = 0; state.refOff.y = 0; state.refVisible = true;
+      /* v476：新建 = 全新状态。亮度/对比度必须一起归零并同步滑杆与数值，
+         否则会继承上一张图的「图纸优化」参数（用户实测新建后对比度仍是 5）。 */
+      state.brightness = 0; state.contrast = 0;
+      if ($("rngBright")) $("rngBright").value = 0;
+      if ($("lbBright")) $("lbBright").textContent = 0;
+      if ($("rngContrast")) $("rngContrast").value = 0;
+      if ($("lbContrast")) $("lbContrast").textContent = 0;
       undoStack.length = 0; redoStack.length = 0; snapshotBefore = null;
       curDraftId = 0;
       applyProjName(nm);
@@ -10761,7 +10784,8 @@ function bindUI(){
   /* 平板抽屉 */
   $("btnDrawerL").addEventListener("click", function(){ toggleDrawer("left"); });
   $("btnDrawerR").addEventListener("click", function(){ toggleDrawer("right"); });
-  $("drawerMask").addEventListener("click", function(){ setDrawer(null); });
+  /* v477：遮罩只做视觉压暗，不拦截手势、也不再点它关抽屉（CSS pointer-events:none）。
+     抽屉由用户自己关闭：再点一次入口按钮，或按 Esc。 */
   $("btnPenMode").addEventListener("click", function(){ setPenMode(!penMode); });
   /* 笔类工具是 data-ptool 副本，走循环绑定（当前色/图例的绑定在上面） */
   var pt = document.querySelectorAll("#padDockR [data-ptool]");
@@ -10775,7 +10799,7 @@ function bindUI(){
     var lp = document.querySelector(".layer-panel");
     var open = lp.classList.toggle("open");
     this.classList.toggle("active", open);
-    if (open){ closeEraseMenu(); setDrawer(null); }   /* 与橡皮菜单、色板浮层互斥 */
+    /* v478：图层面板与抽屉 / 橡皮菜单互不互斥，各自独立开关 */
   });
   /* 右栏色号 → 色板浮层；下面那个调色板图标 → 图例色号浮层 */
   $("padCur").addEventListener("click", function(){ toggleDrawer("right", "palette"); });
@@ -10914,9 +10938,9 @@ function setTool(t){
     wrap.classList.toggle("open", t === "eraser");
   }
   if ($("segWrapPad")) $("segWrapPad").classList.toggle("open", t === "eraser");
-  /* 规范①：选工具就收起所有浮层（橡皮的二级菜单属于当前工具，上面刚打开，保留） */
-  if (openDrawer) setDrawer(null);
-  closeLayerPanel();
+  /* v477：选工具也不再自动关抽屉（抽屉由用户自己关闭）；
+     橡皮的二级菜单属于当前工具，上面刚打开，保留 */
+  /* v478：选工具也不再收图层面板（面板只由用户自己关闭） */
   /* 右缘操作条上移动/去背景副本的选中态 */
   var ptl = document.querySelectorAll("#padDockR [data-ptool]");
   for (var pj = 0; pj < ptl.length; pj++){
