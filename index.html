@@ -2682,6 +2682,12 @@ html,body{touch-action:manipulation}
             </div>
             <div class="grp">
               <div class="fld">
+                <label class="f" title="拉高 = 脸部渐变细阶更多、更真实；拉到 0 = 回到干净平涂">脸部层次 <b id="lbDither">70</b></label>
+                <input id="rngDither" min="0" max="100" step="5" type="range" value="70">
+              </div>
+            </div>
+            <div class="grp">
+              <div class="fld">
                 <label class="f">细节调整</label>
                 <div class="segbar" id="warmRow" style="margin-bottom:var(--s3)">
                   <button class="active" data-warm="0">原图</button>
@@ -3207,6 +3213,7 @@ var state = {
   lockVal: 1,             // 锁定时的 高/宽
   sourceMode: "auto",    // 转换风格：auto 自动（按内容判断真像素画/连续色调）/ pixel 像素画 / photo 照片
   brightness: 0,          // v406：手动亮度 -100~+100（暗图提亮拉层次）
+  ditherAmt: 70,          // v649：脸部层次 0~100（0=平涂干净，70=默认，100=最强渐变颗粒）
   contrast: 0,            // v406：手动对比度 -100~+100（拉主体轮廓）
   highlight: -1,
   /* 图层：数组顺序 = 从下到上（0 = 图纸层，最底）。
@@ -3430,6 +3437,7 @@ function setDrawer(side, mode, domOnly){
    - 点任意【工具】按钮 → 关掉所有浮层（画图需要画布空间，浮层不该赖着）
    - 点【另一个面板入口】 → 切换过去（不是关闭）
    - 点【已展开的那个入口】 → 收起
+   - v479 起：亮度/对比度为 0 时不做任何自动增强，转换忠实还原原图颜色
    - v478 起：浮层/面板各自独立，互不互斥；开一个不影响另一个
    - 点画布、选工具、移动画布都不关任何面板
    - 关闭只走：再点该面板的入口按钮，或 Esc（一次收起全部） */
@@ -3750,8 +3758,7 @@ function canDraw(){
   if (L.locked){ toast("「" + L.name + "」已锁定，点图层上的锁图标解锁"); return false; }
   return true;
 }
-/* v380：离屏图层缓存已删，这里保留为空操作（历史上 10 处调用点用于清缓存脏标记） */
-function markAllLayersDirty(){}
+
 function initLayers(patternGrid){
   layerSeq = 0;
   state.layers = [makeLayer("图纸层", "pattern", patternGrid || makeGrid(state.cols, state.rows, false))];
@@ -3816,7 +3823,7 @@ function delLayer(i){
   state.active = clamp(state.active >= i ? state.active - 1 : state.active, 0, state.layers.length - 1);
   state.refActive = false;
   syncActiveGrid();
-  markAllLayersDirty();
+  
   endChange();
   renderGrid(); updateStats(); updatePaletteMarks(); renderLayerPanel();
   toast("已删除「" + L.name + "」");
@@ -3829,7 +3836,7 @@ function moveLayer(i, dir){
   if (state.active === i) state.active = j;
   else if (state.active === j) state.active = i;
   syncActiveGrid();
-  markAllLayersDirty();
+  
   endChange();
   renderGrid(); renderLayerPanel();
 }
@@ -3847,7 +3854,7 @@ function reorderLayer(from, insertAt){
   var ai = state.layers.indexOf(keep);
   state.active = ai < 0 ? clamp(state.active, 0, state.layers.length - 1) : ai;
   syncActiveGrid();
-  markAllLayersDirty();
+  
   endChange();
   renderGrid(); renderLayerPanel(); saveDraft();
   return true;
@@ -3868,7 +3875,7 @@ function mergeDown(i){
   state.active = clamp(i - 1, 0, state.layers.length - 1);
   state.refActive = false;
   syncActiveGrid();
-  markAllLayersDirty();
+  
   endChange();
   renderGrid(); updateStats(); updatePaletteMarks(); renderLayerPanel();
   toast("已向下合并到「" + lo.name + "」");
@@ -3893,7 +3900,7 @@ function mergeSelected(){
   state.active = clamp(base, 0, state.layers.length - 1);
   state.refActive = false;
   syncActiveGrid();
-  markAllLayersDirty();
+  
   endChange();
   renderGrid(); updateStats(); updatePaletteMarks(); renderLayerPanel();
   toast("已合并 " + (names.length + 1) + " 个图层到「" + baseL.name + "」");
@@ -4340,7 +4347,7 @@ function applySnapshot(s){
   state.active = clamp(s.active | 0, 0, state.layers.length - 1);
   state.refActive = false;
   syncActiveGrid();
-  markAllLayersDirty();
+  
   state.refOff.x = s.refOff.x; state.refOff.y = s.refOff.y;
   $("inCols").value = s.cols; $("inRows").value = s.rows;
   if (state.lockRatio) state.lockVal = clamp(s.rows / s.cols, 0.04, 25);
@@ -5593,9 +5600,7 @@ function buildRefMove(){
     });
   }
 }
-function sizeLabel(c, r){
-  return (c * BEAD_MM / 10).toFixed(1) + " × " + (r * BEAD_MM / 10).toFixed(1) + " cm";
-}
+
 
 /* =========================================================
    v123：画板大小由底图算出来，而不是给几个固定档位
@@ -5788,7 +5793,7 @@ function autoCrop(){
   /* v87：裁完的尺寸不再是预设尺寸，主线改成从左上角按 10 的倍数排（和导出图一致） */
   state.gridAlign = "start";
   syncActiveGrid();
-  markAllLayersDirty();
+  
   $("inCols").value = nw; $("inRows").value = nh;
   if (state.lockRatio) state.lockVal = clamp(nh / nw, 0.04, 25);
   endChange();
@@ -5846,7 +5851,7 @@ function applySize(maxSide){
   /* v122：画布变了，底图能挪的范围也变了 —— 先把偏移夹回合法区间再画 */
   clampRefOff();
   syncActiveGrid();
-  markAllLayersDirty();
+  
   endChange();
   renderAll();
   renderLayerPanel();
@@ -6183,58 +6188,37 @@ function de2000(l1, a1, b1, l2, a2, b2){
   return Math.sqrt(t1 * t1 + t2 * t2 + t3 * t3 + Rt * t2 * t3);
 }
 
-/* =========================================================
-   图像增强：曝光归一化 + 轻 S 曲线 + 饱和度
-   按中位亮度求 gamma（比逐通道百分位拉伸稳，不会被画面角落的
-   暗色/亮色带偏全局色调）。豆子色板饱和度高，原图提一点饱和度
-   映射后才不发灰。用 LUT，百万像素也是一次查表。
-   ========================================================= */
-function enhanceData(d, n, sat){
-  var step = Math.max(1, Math.floor(n / 120000)), samp = [], i;
-  var hist = new Int32Array(256), tot = 0;
-  for (i = 0; i < n; i += step){
-    var o = i * 4;
-    var lv = 0.299 * d[o] + 0.587 * d[o + 1] + 0.114 * d[o + 2];
-    samp.push(lv); hist[clamp(lv | 0, 0, 255)]++; tot++;
-  }
-  samp.sort(function(a, b){ return a - b; });
-  var med = clamp(samp[samp.length >> 1] / 255, 0.02, 0.98);
-  /* 只提亮不压暗：白底/亮色 artwork 的中位亮度本来就高，压暗会把整图色调毁掉 */
-  var g = 1;
-  if (med < 0.48) g = clamp(Math.log(0.48) / Math.log(med), 0.7, 1.0);
-  /* ⚠ v112 试过「直方图两端拉伸 + 自适应 S 曲线」并已回滚：那是把照片往「高对比插画」
-     方向推，属于风格化而非还原 —— 实测色差 4.49→6.14，眼睛细节 14.1→22.8。
-     那位作者的效果来自「原图本身就是高对比插画」，不是靠后期拉曲线。 */
-  var lut = new Float32Array(256);
-  for (i = 0; i < 256; i++){
-    var x = i / 255;
-    x = Math.pow(x, g);
-    x = x + 0.08 * (x - 0.5) * (1 - Math.abs(2 * x - 1));
-    lut[i] = x * 255;
-  }
-  var doSat = Math.abs(sat - 1) > 1e-6;
-  for (i = 0; i < n; i++){
-    var p = i * 4;
-    var r = lut[d[p]], gg = lut[d[p + 1]], b = lut[d[p + 2]];
-    if (doSat){
-      var l = 0.299 * r + 0.587 * gg + 0.114 * b;
-      /* v447：去掉肤色封顶 —— v438 加的 1.06 封顶会压灰精致插画的肤色层次（35→30 色、红眼变淡），
-         v434/v435 暖肤改粉后橙斑根源已解决，封顶冗余，恢复对所有像素统一增饱和 */
-      r = l + (r - l) * sat; gg = l + (gg - l) * sat; b = l + (b - l) * sat;
-    }
-    d[p] = r; d[p + 1] = gg; d[p + 2] = b;
-  }
-}
+
 /* v406/v407 · 手动亮度/对比度（模式无关）：暗图提亮拉层次、拉对比显轮廓。
-   v407 从 enhanceData 拆出 —— 之前只在照片路线生效（enhanceData 被 if(photo) 包着），
-   用户在像素画模式拉亮度无反应。亮度加性偏移 ±40、对比度绕 128 拉伸 0.5~1.5，默认 0 跳过。 */
+   v407 从旧自动增强里拆出 —— 之前只在照片路线生效（被 if(photo) 包着），
+   用户在像素画模式拉亮度无反应。v483 起亮度正值走 gamma、负值线性，默认 0 跳过。 */
+/* v483：亮度/对比度改用「先线性拉伸对比、再 gamma 抬亮」。
+   旧版是「(x-128)*cF + 128 + 线性偏移」，拉到 100/100 时 LUT 变成
+   0→0、35→29、180→246、220→255 —— 暗部没抬起来、亮部直接爆白，
+   用户实测要把两根杆都拉满才勉强能用，且脸被烧成 #FFFFDB。
+   现在：亮度 0/对比度 0 直接跳过，逐点等于原图（v479 的约束不变）；
+   亮度正值走 gamma（v484 起 sqrt 型，低档位即见效）+ 暗部保护，负值仍走线性压暗；
+   对比度正值改 S 曲线（两端固定、中间拉开），避免线性拉伸压死暗背景；负值行为不变。 */
 function applyExposure(d, n){
-  if (!state.brightness && !state.contrast) return;
-  var bOff = (state.brightness || 0) / 100 * 40;
-  var cF = 1 + (state.contrast || 0) / 100 * 0.5;
+  var bv = state.brightness || 0, cv = state.contrast || 0;
+  if (!bv && !cv) return;
+  /* v652：负对比度由 0.5 提到 0.6 —— 原来 -100 时 0→64、255→191，整图蒙一层灰。 */
+  var cF = 1 + cv / 100 * 0.4;
+  /* v652：亮度正负都走 gamma，且互为逆变换（+100 的 gm=0.55，-100 的 gm=1/0.55≈1.818）。
+     原来负值走 -40 的线性偏移，会把输入 0~40 全压成纯黑（实测削波 15.2%），
+     而且同一根滑杆左右手感不一致。改成反向 gamma 后：不削波、左右对称。 */
+  var gm = bv > 0 ? 1 - 0.45 * (bv / 100)
+                  : (bv < 0 ? 1 / (1 - 0.45 * (-bv / 100)) : 0);
+  /* 对比度正值走标准 S 曲线：x = t + k·t(1-t)(2t-1)，两端固定在 0/1、
+     中间拉开明暗。绕 128 的线性拉伸会把深色背景直接压成纯黑
+     （实测 +50/+50 时 #060B07→#000000），与抬暗的初衷冲突。 */
+  var kS = cv > 0 ? cv / 100 * 0.7 : 0;
   var lut = new Float32Array(256), i;
   for (i = 0; i < 256; i++){
-    var x = (i - 128) * cF + 128 + bOff;
+    var t = i / 255;
+    var x = kS ? t + kS * t * (1 - t) * (2 * t - 1) : (t - 0.5) * cF + 0.5;
+    x = Math.max(0, Math.min(1, x)) * 255;
+    if (gm) x = Math.pow(x / 255, gm) * 255;      /* gamma：正值抬暗保亮，负值整体压暗 */
     lut[i] = x < 0 ? 0 : (x > 255 ? 255 : x);
   }
   for (i = 0; i < n; i++){
@@ -6457,17 +6441,7 @@ function cellStats(sup, cols, rows, SS){
    自动画质（v111）：全部按画面内容自适应，不暴露任何开关
    ========================================================= */
 /* 饱和提升量：画面越灰提得越多，本来就鲜艳的几乎不提（避免溢色） */
-function autoSat(d, n){
-  var step = Math.max(1, Math.floor(n / 60000)), cnt = 0, sum = 0, i;
-  for (i = 0; i < n; i += step){
-    var o = i * 4, r = d[o], g = d[o + 1], b = d[o + 2];
-    var mx = Math.max(r, g, b), mn = Math.min(r, g, b);
-    if (mx < 8) continue;
-    sum += (mx - mn) / mx; cnt++;
-  }
-  var s = cnt ? sum / cnt : 0.25;                  /* 0=全灰 1=鲜艳 */
-  return clamp(1.30 - 0.8 * s, 1.00, 1.30);
-}
+
 /* 每格取色方式：按格内细节强度自动选 —— 这是「大色块 / 没细节」的主因。
    平均会把明暗交界抹成中间色；主导色能保住块面；暗部细节色能保住眼睛/轮廓这类小特征。 */
 function autoCells(st, n){
@@ -6487,25 +6461,7 @@ function autoCells(st, n){
   }
   return out;
 }
-/* 候选色数：分辨率越高、画面色彩越丰富，给的色越多（52 格约 80、104 格约 120，再由丰富度缩放） */
-function autoPaletteK(cols, rows, lab){
-  /* v363：对标竞品（88² 仅 24~35 色）—— 原 0.85 系数让 88² 算到 108 色，图碎；
-     收紧到 0.30，小图克制色数换干净，大图按边长线性放开 */
-  /* v452：恢复 v363 前的色数系数 0.85（用户要「最开始 40 色」的效果）。
-     v363 收紧到 0.30 是为了「对标竞品克制色数」，但厚涂插画色数被压到 29 色、层次塌缩。
-     selectPalette 的吸附+去重本身会塌陷（K≈106 只落 41 色），不会回到 v363 说的「108 色图碎」。 */
-  var base = 18 + 0.85 * Math.max(cols, rows);
-  var n = lab.length / 3, step = Math.max(1, Math.floor(n / 4000)), i;
-  var seen = {}, hn = 0;
-  for (i = 0; i < n; i += step){
-    var k = ((lab[i * 3] / 12) | 0) * 1024 +
-            (((lab[i * 3 + 1] + 128) / 16) | 0) * 32 +
-            (((lab[i * 3 + 2] + 128) / 16) | 0);
-    if (!seen[k]){ seen[k] = 1; hn++; }
-  }
-  var rich = clamp(hn / 260, 0.65, 1.30);
-  return Math.round(clamp(base * rich, 24, 160));
-}
+
 
 
 /* =========================================================
@@ -6528,7 +6484,7 @@ function buildD(lab, S){
   var sc = new Float64Array(m);
   for (var j0 = 0; j0 < m; j0++){ var p0 = pl[S[j0]]; sc[j0] = Math.hypot(p0[1], p0[2]); }
   var D = new Float64Array(n * m);
-  var TOP = Math.min(8, m);   /* v470：欧氏距离预筛 top8，只对最近 8 个豆算精确 de2000，其余用欧氏²+偏置 */
+  var TOP = Math.min(12, m);  /* v648：top8→top12，MRF 不再被锁死在 8 颗豆里，孤立杂点有更多可解 */
   var top = new Int32Array(TOP), tv = new Float64Array(TOP), t0, j, t1, t2, j2, jj;
   for (var i = 0; i < n; i++){
     var l = lab[i * 3], a = lab[i * 3 + 1], b = lab[i * 3 + 2], o = i * m;
@@ -6691,7 +6647,7 @@ function tonalAllow(lab, n){
   }
   return allow;
 }
-function selectPalette(lab, K, mergeThr, wt){
+function selectPalette(lab, K, mergeThr, wt, noToneGuard){
   var n = lab.length / 3, i, j, k;
   K = Math.max(1, Math.min(K, n, AUTO_IDX.length));
   if (K >= AUTO_IDX.length) return AUTO_IDX.slice();
@@ -6763,7 +6719,9 @@ function selectPalette(lab, K, mergeThr, wt){
     }
     return bst;
   }
-  var allow = tonalAllow(lab, n);
+  /* v648：照片路线传 noToneGuard=true —— 灰豆约束改由 convertPhoto 按格施加，
+     全局禁豆会把灰色毛衣/背景也逼成彩豆，ΔE 反而升高 */
+  var allow = noToneGuard ? null : tonalAllow(lab, n);
   var S = [], seen = {};
   for (j = 0; j < K; j++){
     var id = snapCenter(centers[j * 3], centers[j * 3 + 1], centers[j * 3 + 2], allow);
@@ -6773,7 +6731,7 @@ function selectPalette(lab, K, mergeThr, wt){
   for (it = 0; it < 2; it++){   /* v470：4→2 轮，de2000 减半；最终分配在 buildD+argminD，这里不用收敛到极致 */
     var m = S.length, pl2 = palLab();
     var a2 = new Int32Array(n), cnt = new Float64Array(m);
-    var TOP3 = Math.min(8, m);
+    var TOP3 = Math.min(12, m);
     var tp3 = new Int32Array(TOP3), tv3 = new Float64Array(TOP3), tt;
     for (i = 0; i < n; i++){
       var l3 = lab[i * 3], a3 = lab[i * 3 + 1], b3 = lab[i * 3 + 2];
@@ -6800,46 +6758,31 @@ function selectPalette(lab, K, mergeThr, wt){
       }
       a2[i] = bst3; cnt[bst3] += wt ? wt[i] : 1;
     }
-    while (m > 1){
-      var bi = -1, bj = -1, bd4 = Infinity;
-      for (j = 0; j < m; j++){
-        for (k = j + 1; k < m; k++){
-          var q1 = pl2[S[j]], q2 = pl2[S[k]];
-          var dd2 = de2000(q1[0], q1[1], q1[2], q2[0], q2[1], q2[2]);
-          if (dd2 < bd4){ bd4 = dd2; bi = j; bj = k; }
-        }
+    /* v648：近重复合并改为「一次性算全部豆对 ΔE → 升序合并」。
+       旧版每合并一对就整图重分配一次（O(n·m) × m 次），200 格时是主要热点；
+       现在只把被删簇的样本改指保留簇，最后统一重映射索引，结果等价、复杂度降一个量级。 */
+    {
+      var m0 = S.length, pairs = [], pj, pk;
+      for (pj = 0; pj < m0; pj++) for (pk = pj + 1; pk < m0; pk++){
+        var qa = pl2[S[pj]], qb = pl2[S[pk]];
+        pairs.push([de2000(qa[0], qa[1], qa[2], qb[0], qb[1], qb[2]), pj, pk]);
       }
-      if (bi < 0 || bd4 >= mergeThr) break;
-      var keep = cnt[bi] >= cnt[bj] ? bi : bj, drop = keep === bi ? bj : bi;
-      S.splice(drop, 1); m--;
-      /* 重新分配 */
-      cnt = new Int32Array(m);
-      var tp4 = new Int32Array(TOP3), tv4 = new Float64Array(TOP3), tt4;
-      for (i = 0; i < n; i++){
-        var l4 = lab[i * 3], a4 = lab[i * 3 + 1], b4 = lab[i * 3 + 2];
-        for (tt4 = 0; tt4 < TOP3; tt4++) tv4[tt4] = Infinity;
-        for (j = 0; j < m; j++){
-          var p4 = pl2[S[j]];
-          var dl4 = l4 - p4[0], da4 = a4 - p4[1], db4 = b4 - p4[2];
-          var de4 = dl4*dl4 + da4*da4 + db4*db4;
-          var t4 = TOP3 - 1;
-          if (de4 < tv4[t4]){
-            tv4[t4] = de4; tp4[t4] = j;
-            while (t4 > 0 && tv4[t4] < tv4[t4-1]){
-              var vv4 = tv4[t4]; tv4[t4] = tv4[t4-1]; tv4[t4-1] = vv4;
-              var ii4 = tp4[t4]; tp4[t4] = tp4[t4-1]; tp4[t4-1] = ii4;
-              t4--;
-            }
-          }
-        }
-        var bd5 = Infinity, bst5 = tp4[0];
-        for (tt4 = 0; tt4 < TOP3; tt4++){
-          var jj4 = tp4[tt4], p5 = pl2[S[jj4]];
-          var e4 = de2000(l4, a4, b4, p5[0], p5[1], p5[2]);
-          if (e4 * e4 < bd5){ bd5 = e4 * e4; bst5 = jj4; }
-        }
-        a2[i] = bst5; cnt[bst5]++;
+      pairs.sort(function(x, y){ return x[0] - y[0]; });
+      var removed = new Uint8Array(m0);
+      for (var pi = 0; pi < pairs.length; pi++){
+        if (pairs[pi][0] >= mergeThr) break;
+        var ja = pairs[pi][1], jb = pairs[pi][2];
+        if (removed[ja] || removed[jb]) continue;
+        var keepI = cnt[ja] >= cnt[jb] ? ja : jb, dropI = keepI === ja ? jb : ja;
+        removed[dropI] = 1; cnt[keepI] += cnt[dropI]; cnt[dropI] = 0;
+        for (i = 0; i < n; i++) if (a2[i] === dropI) a2[i] = keepI;
       }
+      var remap = new Int32Array(m0), nk = 0;
+      for (pj = 0; pj < m0; pj++) remap[pj] = removed[pj] ? -1 : nk++;
+      for (i = 0; i < n; i++) if (a2[i] >= 0) a2[i] = remap[a2[i]];
+      var nS = [];
+      for (pj = 0; pj < m0; pj++) if (!removed[pj]) nS.push(S[pj]);
+      S = nS; m = S.length;
     }
     var newS = [], seen2 = {};
     for (k = 0; k < m; k++){
@@ -6848,7 +6791,7 @@ function selectPalette(lab, K, mergeThr, wt){
         if (a2[i] === k){ sr += lab[i * 3]; sg += lab[i * 3 + 1]; sb += lab[i * 3 + 2]; c++; }
       }
       if (!c) continue;
-      var id2 = snapCenter(sr / c * W0, sg / c * W1, sb / c * W2);
+      var id2 = snapCenter(sr / c * W0, sg / c * W1, sb / c * W2, allow);   /* v648：补传 allow —— 漏传会让中明度纯灰豆从第二轮吸附漏回色板，肤色发灰 */
       if (!seen2[id2]){ seen2[id2] = 1; newS.push(id2); }
     }
     if (!newS.length) break;
@@ -7015,60 +6958,75 @@ function linePromote(st, cells, cols, rows, illuLine){
   }
 }
 
-function computeCells(cols, rows){
-  if (!state.refImage) return null;
-
-  /* 1. 源图限幅绘制到 ≤1024 */
-  var iw = state.refImage.naturalWidth || state.refImage.width;
-  var ih = state.refImage.naturalHeight || state.refImage.height;
+/* v648：源像素缓存 —— computeCells 与 photoCells 共用同一份「限幅绘制 → 透明置白 → 曝光」结果，
+   照片模式不再重复 drawImage/getImageData；同时保留未曝光的 raw，让亮度/对比度拉杆
+   不再改变 auto 的 photo/pixel 风格判定（实测拉满亮度会把 photo 翻成 pixel）。
+   缓存键含图片对象引用，换图/暖肤生成的新 Image 会自动失效。 */
+var SRC_PIX = null;
+function sourcePixels(){
+  var img = state.refImage;
+  if (!img) return null;
+  var iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
   var sc = Math.min(1, 1024 / Math.max(iw, ih));
   var cw = Math.max(1, Math.round(iw * sc)), chh = Math.max(1, Math.round(ih * sc));
-  var cv = document.createElement("canvas"); cv.width = cw; cv.height = chh;
-  var cx = cv.getContext("2d");
+  var bv = state.brightness || 0, cv = state.contrast || 0;
+  var key = cw + "x" + chh + "|" + bv + "|" + cv + "|" + (state.warmOn ? 1 : 0) +
+            "|" + (state.refDataUrl || "").length;
+  if (SRC_PIX && SRC_PIX.img === img && SRC_PIX.key === key) return SRC_PIX;
+  var cvx = document.createElement("canvas"); cvx.width = cw; cvx.height = chh;
+  var cx = cvx.getContext("2d");
   cx.imageSmoothingEnabled = true; cx.imageSmoothingQuality = "high";
-  cx.drawImage(state.refImage, 0, 0, cw, chh);
-  var d;
-  try { d = cx.getImageData(0, 0, cw, chh).data; }
+  cx.drawImage(img, 0, 0, cw, chh);
+  var raw;
+  try { raw = cx.getImageData(0, 0, cw, chh).data; }
   catch(err){ toast("无法读取图片像素（跨域限制）"); return null; }
   for (var ti = 0; ti < cw * chh; ti++){
-    if (d[ti * 4 + 3] < 128){ d[ti * 4] = 255; d[ti * 4 + 1] = 255; d[ti * 4 + 2] = 255; }
+    if (raw[ti * 4 + 3] < 128){ raw[ti * 4] = 255; raw[ti * 4 + 1] = 255; raw[ti * 4 + 2] = 255; }
   }
+  var exposed = !!(bv || cv);
+  var d = exposed ? new Uint8ClampedArray(raw) : raw;   /* 曝光只作用于副本，raw 供风格判定 */
+  if (exposed) applyExposure(d, cw * chh);
+  SRC_PIX = { img: img, key: key, raw: raw, d: d, cw: cw, chh: chh, exposed: exposed };
+  return SRC_PIX;
+}
 
-  /* 2. 增强（照片/自动做曝光+饱和；像素画保持原色） */
-  var kind = state.sourceMode;
-  if (kind === "photo" || kind === "auto") enhanceData(d, cw * chh, autoSat(d, cw * chh));
-  if (state.brightness || state.contrast) applyExposure(d, cw * chh);
+function computeCells(cols, rows){
+  var sp = sourcePixels();
+  if (!sp) return null;
+  var cw = sp.cw, chh = sp.chh, d = sp.d;
 
-  /* 3. 适配 + 面积平均采样 */
+  /* 1. 适配 + 面积平均采样（先用未曝光的原图，风格判定不受拉杆影响） */
   var r = fitRect(cw, chh, cols, rows, state.refFit, state.refOff.x, state.refOff.y);
   var SS = Math.max(2, Math.min(8, Math.floor(1024 / Math.max(cols, rows))));
-  var sup = resampleBox(d, cw, chh, r[0], r[1], r[2], r[3], cols * SS, rows * SS);
-  var st = cellStats(sup, cols, rows, SS);
-  var n = cols * rows, i;
-
-  /* 4. 特征色（红眼/唇色）：面积平均会稀释，用原图重检 */
-  accentScan(d, cw, chh, cols, rows, r, st);
-
-  /* 5. 类型判定：每格均色 vs 众色距离 → 真像素画(md/n≤4 走零归纳) vs 连续色调 */
-  var md = 0;
+  var supRaw = resampleBox(sp.raw, cw, chh, r[0], r[1], r[2], r[3], cols * SS, rows * SS);
+  var stRaw = cellStats(supRaw, cols, rows, SS);
+  var n = cols * rows, i, md = 0;
   for (i = 0; i < n; i++){
-    var da = st.mean[i * 3] - st.mode[i * 3], db = st.mean[i * 3 + 1] - st.mode[i * 3 + 1], dc = st.mean[i * 3 + 2] - st.mode[i * 3 + 2];
+    var da = stRaw.mean[i * 3] - stRaw.mode[i * 3],
+        db = stRaw.mean[i * 3 + 1] - stRaw.mode[i * 3 + 1],
+        dc = stRaw.mean[i * 3 + 2] - stRaw.mode[i * 3 + 2];
     md += Math.sqrt(da * da + db * db + dc * dc);
   }
-  if (kind === "auto") kind = (md / n > 4) ? "photo" : "pixel";
-  st.illu = (kind === "pixel") && (md / n > 4);
-  st.thick = (md / n / SS) > 1.5;
+  var mdAvg = md / n;
+  var kind = state.sourceMode;
+  if (kind === "auto") kind = (mdAvg > 4) ? "photo" : "pixel";
 
-  /* 6. 白底插画：轮廓格只对前景取平均（要先于取色——它修正 st.mean/mode，取色才用它） */
-  whiteBgFix(d, cw, chh, cols, rows, SS, sup, st);
+  /* 2. 有曝光才需要按曝光后的像素重新采样；默认 0/0 直接复用，零额外成本 */
+  var sup = sp.exposed ? resampleBox(d, cw, chh, r[0], r[1], r[2], r[3], cols * SS, rows * SS) : supRaw;
+  var st  = sp.exposed ? cellStats(sup, cols, rows, SS) : stRaw;
 
-  /* 7. 取色：真像素画用众数(零归纳)，其余用均色 + 红眼覆盖 */
-  var cells = (kind === "pixel" && !st.illu) ? st.mode : autoCells(st, n);
-
-  /* 8. 像素画/插画描边还原（照片不描边） */
-  if (kind === "pixel" || st.illu) linePromote(st, cells, cols, rows, !!st.illu);
-
-  return { cells: cells, st: st, rect: r, cw: cw, chh: chh, n: n, kind: kind };
+  /* 3. 特征色/白底修正/描边还原只对像素画路线有意义；照片路线由 photoCells 独立取色，
+        跳过这三步能省掉照片模式里一半的无用计算（v648）。 */
+  var cells;
+  if (kind === "pixel"){
+    accentScan(d, cw, chh, cols, rows, r, st);
+    whiteBgFix(d, cw, chh, cols, rows, SS, sup, st);
+    cells = st.mode;                       /* 真像素画用众数，零归纳 */
+    linePromote(st, cells, cols, rows, false);
+  } else {
+    cells = autoCells(st, n);              /* 照片模式只作为兜底返回，转换与诊断都不再依赖它 */
+  }
+  return { cells: cells, st: st, rect: r, cw: cw, chh: chh, n: n, kind: kind, md: mdAvg };
 }
 
 function cellsToLab(cells, n){
@@ -7079,52 +7037,8 @@ function cellsToLab(cells, n){
   }
   return lab;
 }
-/* v147：暗部色相守卫 —— MARD 暗区（L<50）只有栗色/暗红棕（F11 #5A2121、G8 #753832
-   这类 a≈26 的豆），缺少暗琥珀棕。暖调阴影（腹影、颈影、暗调肤色）会被最近豆规则
-   吸进栗色家族，整片阴影色相被转红 15~20°，实物上就是「红色的暗部很奇怪」。
-   实测 104×154 暗调人像：F10/G7/G20 这些色相正确的豆在候选色板里是 0 颗。
-   这里只做窄域修正：高饱和(chroma>20)暗豆(L<50) × 暖色相格(格 chroma>8) 且
-   色相差 >15° 才重挑；重挑时色相优先（≤22° 内）、亮度限制在格 ±8/+16 内、
-   候选豆自身 chroma≥8（不许塌到灰黑）。半中性影调豆（M12/G17，chroma 13~18）
-   与冷色区完全不动 —— 它们承担的灰色阴影是设计内的。 */
-/* v439：肤色孤点合并 —— 柔和渐变的肤色区里，色相相近、亮度不同的豆会互相穿插，
-   形成灰紫/灰绿/偏黄的孤立杂点。只对「肤色家族」豆（L 25~98、chroma>6、色相 8~80°）
-   里「8 邻无同色」的孤格做合并：并入投票最多的肤色邻居，仅当豆色差 < maxDE。
-   8 邻判孤立 —— 斜向的细划痕/分割线靠对角相连，不算孤立，不会被误删；
-   非肤色（眼睛黑、唇红、高光白、衣服蓝橙）不在此列，完全不动。 */
-function despeckleSkin(codes, cols, rows, maxDE, iters){
-  var pl = palLab(), cur = new Int32Array(codes);
-  function skinish(p){
-    var ch = Math.hypot(p[1], p[2]);
-    var h = (Math.atan2(p[2], p[1]) * 180 / Math.PI + 360) % 360;
-    return p[0] > 25 && p[0] < 98 && ch > 6 && h > 8 && h < 80;
-  }
-  for (var it = 0; it < iters; it++){
-    var changed = 0;
-    for (var y = 0; y < rows; y++) for (var x = 0; x < cols; x++){
-      var i = y * cols + x, v = cur[i];
-      if (!skinish(pl[v])) continue;
-      var same = 0, vote = {}, dx, dy;
-      for (dy = -1; dy <= 1; dy++) for (dx = -1; dx <= 1; dx++){
-        if (!dx && !dy) continue;
-        var nx = x + dx, ny = y + dy;
-        if (nx < 0 || ny < 0 || nx >= cols || ny >= rows) continue;
-        var u = cur[ny * cols + nx];
-        if (u === v) same++;
-        else vote[u] = (vote[u] || 0) + 1;
-      }
-      if (same > 0) continue;
-      var best = -1, bn = 0, k;
-      for (k in vote) if (vote[k] > bn){ bn = vote[k]; best = +k; }
-      if (best < 0 || !skinish(pl[best])) continue;
-      var a = pl[v], b = pl[best];
-      if (de2000(a[0], a[1], a[2], b[0], b[1], b[2]) >= maxDE) continue;
-      cur[i] = best; changed++;
-    }
-    if (!changed) break;
-  }
-  return cur;
-}
+/* v648：移除了 v147 暗部色相守卫注释与 v439 despeckleSkin —— auto 判定下
+   st.illu 恒为 false，插画色板预算分支与肤色去杂点早已无调用点，留着只会误导维护者。 */
 
 
 /* ============ 选豆辅助（v2 重写抽出） ============ */
@@ -7143,7 +7057,6 @@ function despeckleSkin(codes, cols, rows, maxDE, iters){
            大面积明暗交界只有一侧亮/暗，两种判据都不命中，所以不会被拉成暗块（阴阳脸）。
    线条格选色时加权（小面积特征进得了色板）、平滑时放行（不被抹平）。 */
 var PHOTO = {
-  SIGMA_R: 10,     /* 双边滤波色差尺度：小于它的起伏（皮肤噪点、阴影渐变）压平，大于它的（边缘、发丝）保留 */
   HAT_LO: 8,       /* 线条响应（亮度级）≤ 此值：不是线 */
   HAT_HI: 22,      /* ≥ 此值：确定是线，取暗侧色；之间线性过渡 */
   EDGE_LO: 12,     /* 格内色差 ≤ 此值：纯区域格；≥ EDGE_HI：贴着明暗交界，平滑要减弱 */
@@ -7155,52 +7068,35 @@ var PHOTO = {
   LIGHT_DARK: 0.6,/* 亮线格向亮侧靠拢的幅度 */
   LAM_FLAT: 22,    /* 区域格平滑强度（ΔE² 尺度）：压掉孤立杂点 */
   LAM_EDGE: 5,     /* 线条/交界格平滑强度：几乎不动，保住轮廓 */
-  KEEP_R: 3,       /* 边界保留带宽度（格）：线条/明暗交界周围这么多格内不做平涂 */
   FLAT_R: 4,       /* 内部平涂的取样半径（格） */
-  FLAT_MIX: 0.6,   /* 远离边界处向区域均值靠拢的比例（0=关闭，1=完全平涂） */
   K_BASE: 24,      /* 色数 = K_BASE + K_SLOPE × 画布边长 */
   K_SLOPE: 0.55,
   MERGE: 1.0,      /* 色板里 ΔE 小于它的两色并成一色 */
-  DENSE_N: 10,     /* 局部加密：渐变区间隔过大的豆对之间补中间豆（0=关闭） */
-  DENSE_GAP: 7,    /* 豆间隔超过此 ΔE 才考虑补 */
+  DENSE_N: 14,     /* v648：10→14，渐变台阶更细 */
+  DENSE_GAP: 6,    /* v648：7→6，允许补更细的中间豆 */
   DENSE_CHROMA: 18,/* 同色系约束：色度差上限 */
   DENSE_NEAR: 8,   /* 中点附近样本的 ΔE 半径 */
   DENSE_MIN_NEAR: 40,/* 至少这些样本落在中点附近才补 */
   DENSE_TOL: 0.75, /* 补入豆到中点的 ΔE 不得超过间隔的这个比例 */
-  DENSE_END_CHROMA: 12 /* 补豆与两端主豆的色度差上限（防串色） */
+  DENSE_END_CHROMA: 12, /* 补豆与两端主豆的色度差上限（防串色） */
+  LIGHT_W: 6,      /* v648：亮线格额外选色权重 —— 眼白/高光要进得了色板（实测亮线召回 100% 但对比过弱） */
+  SMALL_SIDE: 64,  /* v648：≤ 此边长视为小画布，提高区域平滑压住孤立杂点 */
+  SMALL_LAM: 1.6,
+  K_MAX: 120,      /* v648：色数预算上限 96→120 */
+  K_MIN_RATIO: 0.45, /* 实际豆数不足 K×此比例时用「邻近过渡豆」补足，K 不再是空头支票 */
+  GRAY_GUARD: 60,  /* v648：按格灰豆守卫的代价（ΔE² 尺度）—— 肤色格不许用纯灰豆，中性格不许用高彩度豆 */
+  DITHER: 1,       /* v649：1=启用渐变区误差扩散抖动（0=回退到纯 ICM 平涂路线） */
+  DITHER_KEEP: 0.35, /* 线条/贴边强度超过此值的格不参与抖动，保护五官轮廓 */
+  ZONE: 1,         /* v654：分区渲染开关（1=肤色走平滑、结构走抖动） */
+  ZONE_T: 0.45,    /* 结构强度阈值：line/edge 超过它算结构区，必须保持锐利 */
+  ZONE_R: 14.0,     /* 残差阈值：离最近豆 >5ΔE 说明色板覆盖不住，仍要抖 */
+  ZONE_DILATE: 1,
+  ZONE_FLAT: 0.45,  /* 结构区外扩格数：保护眼线/下颌线的边缘不被平滑削细 */
+  GRAY_GUARD_DE: 5 /* v649：抖动选豆时的灰豆惩罚（ΔE 尺度，D 里的平方惩罚在动态选豆中无效） */
 };
 
 /* 边缘保留平滑：buf 为 W×H×3 的 Float32，返回平滑结果 */
-function bilateralRGB(buf, W, H, R, sigS, sigR, iters){
-  var K = 2 * R + 1, ws = new Float32Array(K * K), t = 0, dx, dy, k;
-  for (dy = -R; dy <= R; dy++) for (dx = -R; dx <= R; dx++) ws[t++] = Math.exp(-(dx * dx + dy * dy) / (2 * sigS * sigS));
-  var wr = new Float32Array(256);
-  for (k = 0; k < 256; k++) wr[k] = Math.exp(-(k * k) / (2 * sigR * sigR));
-  var a = buf, b = new Float32Array(buf.length);
-  for (var it = 0; it < iters; it++){
-    for (var y = 0; y < H; y++){
-      for (var x = 0; x < W; x++){
-        var c = (y * W + x) * 3, cr = a[c], cg = a[c + 1], cb = a[c + 2];
-        var sr = 0, sg = 0, sb = 0, sw = 0, tt = 0;
-        for (dy = -R; dy <= R; dy++){
-          var yy = y + dy;
-          if (yy < 0 || yy >= H){ tt += K; continue; }
-          for (dx = -R; dx <= R; dx++, tt++){
-            var xx = x + dx;
-            if (xx < 0 || xx >= W) continue;
-            var p = (yy * W + xx) * 3, pr = a[p], pg = a[p + 1], pb = a[p + 2];
-            var df = (Math.abs(pr - cr) + Math.abs(pg - cg) + Math.abs(pb - cb)) / 3;
-            var w = ws[tt] * wr[df > 255 ? 255 : (df + 0.5) | 0];
-            sr += pr * w; sg += pg * w; sb += pb * w; sw += w;
-          }
-        }
-        b[c] = sr / sw; b[c + 1] = sg / sw; b[c + 2] = sb / sw;
-      }
-    }
-    var tmp = a; a = b; b = tmp;
-  }
-  return a;
-}
+
 
 /* 细结构检测：中心比两侧都暗 = 暗线（眼线、嘴角）；中心比两侧都亮 = 亮线（眼白、高光）。
    用「两侧都」而非单侧，大面积明暗交界（一侧亮一侧暗）两种 score 都≈0，不会被误判 ——
@@ -7246,28 +7142,20 @@ function boundaryDist(line, edge, cols, rows){
 /* 照片取色：读图 → 增强 → 超采样 → 双边滤波 → 每格取「均色」或「暗侧色」。
    整图转换 convertPhoto 与局部细化 redoRegion 共用这一份，两边取色口径一致。
    返回 rgb（每格最终色）、line（线条强度 0~1）、edge（贴边程度 0~1）、transparent（透明占比）。 */
+/* 照片取色：读图 → 增强 → 超采样 → 双边滤波 → 每格取「均色」或「暗侧色」。
+   整图转换 convertPhoto 与局部细化 redoRegion 共用这一份，两边取色口径一致。
+   v648：源像素改由 sourcePixels 提供（与 computeCells 共用，省一次读图/曝光）；
+   bright[] 单独输出亮线响应，供选色加权与平滑豁免使用。 */
 function photoCells(cols, rows){
-  var img = state.refImage;
-  var iw = img.naturalWidth || img.width, ih = img.naturalHeight || img.height;
-  var sc = Math.min(1, 1024 / Math.max(iw, ih));
-  var cw = Math.max(1, Math.round(iw * sc)), chh = Math.max(1, Math.round(ih * sc));
-  var cv = document.createElement("canvas"); cv.width = cw; cv.height = chh;
-  var cx = cv.getContext("2d"); cx.imageSmoothingEnabled = true; cx.imageSmoothingQuality = "high";
-  cx.drawImage(img, 0, 0, cw, chh);
-  var d = cx.getImageData(0, 0, cw, chh).data, i;
-  /* 透明像素当白色（PNG 透明区底色常是黑的，不处理会被当成「整图偏暗」而过度提亮），alpha 保留 */
-  for (i = 0; i < cw * chh; i++){ if (d[i * 4 + 3] < 128){ d[i * 4] = 255; d[i * 4 + 1] = 255; d[i * 4 + 2] = 255; } }
-  enhanceData(d, cw * chh, autoSat(d, cw * chh));
-  if (state.brightness || state.contrast) applyExposure(d, cw * chh);
-
-  /* 适配 + 超采样（每格 SS×SS 个子像素） */
+  var sp = sourcePixels();
+  if (!sp) return null;
+  var cw = sp.cw, chh = sp.chh, d = sp.d, i;
   var r = fitRect(cw, chh, cols, rows, state.refFit, state.refOff.x, state.refOff.y);
   var SS = clamp(Math.floor(440 / Math.max(cols, rows)), 3, 6);
   var W = cols * SS, H = rows * SS;
   var sup = resampleBox(d, cw, chh, r[0], r[1], r[2], r[3], W, H);
   var buf = new Float32Array(W * H * 3), L = new Float32Array(W * H);
   for (i = 0; i < W * H; i++){ buf[i * 3] = sup[i * 4]; buf[i * 3 + 1] = sup[i * 4 + 1]; buf[i * 3 + 2] = sup[i * 4 + 2]; }
-  buf = bilateralRGB(buf, W, H, 3, 2, PHOTO.SIGMA_R, 1);
   for (i = 0; i < W * H; i++) L[i] = 0.299 * buf[i * 3] + 0.587 * buf[i * 3 + 1] + 0.114 * buf[i * 3 + 2];
   var st = thinStructure(L, W, H, SS);
 
@@ -7275,13 +7163,14 @@ function photoCells(cols, rows){
      两者相抵，避免一格被同时拉暗又拉亮。贴边程度取最暗/最亮 35% 的色差。 */
   var n = cols * rows, cnt = SS * SS, q = Math.max(1, Math.round(cnt * 0.35));
   var rgb = new Float64Array(n * 3), line = new Float32Array(n), edge = new Float32Array(n), transparent = new Float32Array(n);
+  var bright = new Float32Array(n);
   var px = new Int32Array(cnt), lum = new Float32Array(cnt), ord = new Int32Array(cnt);
   var dbuf = new Float32Array(cnt), bbuf = new Float32Array(cnt);
   var hq = Math.max(1, Math.round(cnt * 0.25));   /* 结构响应取格内最高 25% 子像素的平均，单个尖峰不误判 */
-  function topAvg(buf){
-    var a = Array.prototype.slice.call(buf).sort(function(x, y){ return y - x; }), s = 0;
-    for (var t = 0; t < hq; t++) s += a[t];
-    return s / hq;
+  function topAvg(bf){
+    var a = Array.prototype.slice.call(bf).sort(function(x, y){ return y - x; }), sum = 0;
+    for (var t = 0; t < hq; t++) sum += a[t];
+    return sum / hq;
   }
   for (var cy = 0; cy < rows; cy++){
     for (var cxx = 0; cxx < cols; cxx++){
@@ -7294,7 +7183,6 @@ function photoCells(cols, rows){
         k++;
       }
       var hd = topAvg(dbuf), hb = topAvg(bbuf);
-      /* 按亮度升序排下标（k ≤ 36，插入排序即可） */
       for (k = 0; k < cnt; k++){
         var o = k; while (o > 0 && lum[ord[o - 1]] > lum[k]){ ord[o] = ord[o - 1]; o--; }
         ord[o] = k;
@@ -7309,8 +7197,6 @@ function photoCells(cols, rows){
       mr /= cnt; mg /= cnt; mb /= cnt; dr /= q; dg /= q; db /= q; lr /= q; lg /= q; lb /= q;
       var Ld = rgb2lab(dr, dg, db), Ll = rgb2lab(lr, lg, lb);
       var spread = Math.sqrt((Ld[0] - Ll[0]) * (Ld[0] - Ll[0]) + (Ld[1] - Ll[1]) * (Ld[1] - Ll[1]) + (Ld[2] - Ll[2]) * (Ld[2] - Ll[2]));
-      /* 结构强度 0~1（用于平滑豁免、选色加权）与取色幅度（只管颜色）分开：
-         早先把两者混在 line[] 里，幅度最大只有 0.75，导致纯线条格仍被强平滑抹断。 */
       var sd = clamp((hd - PHOTO.HAT_LO) / (PHOTO.HAT_HI - PHOTO.HAT_LO), 0, 1);
       var sb = clamp((hb - PHOTO.LIGHT_LO) / (PHOTO.LIGHT_HI - PHOTO.LIGHT_LO), 0, 1);
       var mix = sd * PHOTO.LINE_DARK - sb * PHOTO.LIGHT_DARK;   /* >0 向暗侧，<0 向亮侧 */
@@ -7321,61 +7207,163 @@ function photoCells(cols, rows){
         var bl = -mix;
         rgb[ci * 3] = mr + bl * (lr - mr); rgb[ci * 3 + 1] = mg + bl * (lg - mg); rgb[ci * 3 + 2] = mb + bl * (lb - mb);
       }
-      line[ci] = Math.max(sd, sb); transparent[ci] = tr / cnt;
+      line[ci] = Math.max(sd, sb); bright[ci] = sb; transparent[ci] = tr / cnt;
       edge[ci] = clamp((spread - PHOTO.EDGE_LO) / (PHOTO.EDGE_HI - PHOTO.EDGE_LO), 0, 1);
     }
   }
-  return { n: n, rgb: rgb, line: line, edge: edge, transparent: transparent };
+  return { n: n, rgb: rgb, line: line, bright: bright, edge: edge, transparent: transparent, rect: r };
+}
+
+
+/* =========================================================
+   v649 · 渐变层：把 v113 老管线的误差扩散抖动移植回来
+   ---------------------------------------------------------
+   为什么必须补这一层：v470 删掉抖动、v475 换成「区域平涂 + ICM 平滑」之后，
+   所有版本的人脸肤色区都有 82~85% 的相邻格是同一颗豆 —— 色板给不出的中间色
+   再也没有机制去模拟，脸就被抹成大片平涂。后来一直在调色数/平滑/去杂点，
+   把「平坦区细阶」当噪声压（flatNoise 0.689 → 0.299），方向正好反了。
+   老版用 FS 蛇形误差扩散让相邻两颗豆交错排列，视觉上混出中间调，
+   并且抖动路线不叠加平滑/去杂点（否则颗粒会被清光）。这里照此复原。
+   ========================================================= */
+/* 抖动强度：平缓渐变格越多 → 抖足（防色带）；图本身平涂多 → 几乎不抖（防脏） */
+function autoDitherAmt(lab, cols, rows){
+  var n = cols * rows, grad = 0, x, y;
+  for (y = 1; y < rows - 1; y++){
+    for (x = 1; x < cols - 1; x++){
+      var i = y * cols + x;
+      var dl = Math.abs(lab[i * 3] - lab[(i - 1) * 3]) + Math.abs(lab[i * 3] - lab[(i - cols) * 3]);
+      if (dl > 1.5 && dl < 14) grad++;
+    }
+  }
+  return clamp((grad / Math.max(1, n)) * 200, 45, 78);
+}
+/* 逐格抖动权重：只有「处于两个色阶之间 + 局部平缓渐变」的地方才抖。
+   平涂内部（邻居同色多）和硬边/轮廓（梯度太陡）权重 0。残差复用 D。 */
+function ditherWeights(lab, cols, rows, D, m, assign){
+  var n = cols * rows, w = new Float64Array(n), x, y, i, j;
+  for (y = 0; y < rows; y++){
+    for (x = 0; x < cols; x++){
+      i = y * cols + x;
+      var sameNb = 0;
+      if (x > 0 && assign[i - 1] === assign[i]) sameNb++;
+      if (x < cols - 1 && assign[i + 1] === assign[i]) sameNb++;
+      if (y > 0 && assign[i - cols] === assign[i]) sameNb++;
+      if (y < rows - 1 && assign[i + cols] === assign[i]) sameNb++;
+      if (sameNb >= 2){ w[i] = 0; continue; }
+      var L = lab[i * 3], bd = Infinity, o = i * m;
+      for (j = 0; j < m; j++){ var v = D[o + j]; if (v < bd) bd = v; }
+      var resid = Math.sqrt(bd);
+      var gs = 0, gc = 0;
+      if (x > 0){ gs += Math.abs(L - lab[(i - 1) * 3]); gc++; }
+      if (x < cols - 1){ gs += Math.abs(L - lab[(i + 1) * 3]); gc++; }
+      if (y > 0){ gs += Math.abs(L - lab[(i - cols) * 3]); gc++; }
+      if (y < rows - 1){ gs += Math.abs(L - lab[(i + cols) * 3]); gc++; }
+      var g = gc ? gs / gc : 0;
+      var smooth = clamp((g - 0.5) / 3.5, 0, 1) * clamp((15 - g) / 9, 0, 1);
+      w[i] = smooth * clamp(resid / 6.5, 0, 1);
+    }
+  }
+  return w;
+}
+/* Floyd–Steinberg 误差扩散（蛇形扫描，Lab 空间）：用相邻格的颜色错落
+   模拟色板给不出的中间色。误差限幅防跑飞；wmap=0 的格不向外扩散误差。 */
+function fsDither(lab, S, cols, rows, strength, wmap){
+  var m = S.length, n = cols * rows, pl = palLab();
+  var work = new Float64Array(lab), out = new Int32Array(n);
+  for (var y = 0; y < rows; y++){
+    var rev = (y & 1) === 1;
+    for (var t = 0; t < cols; t++){
+      var x = rev ? cols - 1 - t : t;
+      var i = y * cols + x, o = i * 3;
+      var cr = work[o], cg = work[o + 1], cb = work[o + 2];
+      var bd = Infinity, bst = 0;
+      /* v649：fsDither 必须基于扩散后的 work 动态选豆，D 里的按格惩罚用不上，
+         所以在这里按「这一格」补一次灰豆守卫：有彩度的格别落到中明度纯灰豆上。 */
+      var cI = Math.hypot(lab[i * 3 + 1], lab[i * 3 + 2]);
+      for (var j = 0; j < m; j++){
+        var p3 = pl[S[j]];
+        var dd = de2000(cr, cg, cb, p3[0], p3[1], p3[2]);
+        if (cI > 8 && p3[0] > 26 && p3[0] < 92 && Math.hypot(p3[1], p3[2]) < 6) dd += PHOTO.GRAY_GUARD_DE;
+        if (dd < bd){ bd = dd; bst = j; }
+      }
+      out[i] = bst;
+      var pb = pl[S[bst]];
+      var wi = wmap ? wmap[i] : 1;
+      var er = clamp((cr - pb[0]) * strength * wi, -18, 18);
+      var eg = clamp((cg - pb[1]) * strength * wi, -26, 26);
+      var eb = clamp((cb - pb[2]) * strength * wi, -26, 26);
+      function add(nx, ny, wgt){
+        if (nx < 0 || nx >= cols || ny < 0 || ny >= rows) return;
+        if (wmap && wmap[ny * cols + nx] <= 0) return;   /* v649：误差不跨过硬边/线条 */
+        var q = (ny * cols + nx) * 3;
+        work[q]     = clamp(work[q] + er * wgt, 0, 100);
+        work[q + 1] = clamp(work[q + 1] + eg * wgt, -128, 128);
+        work[q + 2] = clamp(work[q + 2] + eb * wgt, -128, 128);
+      }
+      if (!rev){ add(x + 1, y, 7/16); add(x - 1, y + 1, 3/16); add(x, y + 1, 5/16); add(x + 1, y + 1, 1/16); }
+      else     { add(x - 1, y, 7/16); add(x + 1, y + 1, 3/16); add(x, y + 1, 5/16); add(x - 1, y + 1, 1/16); }
+    }
+  }
+  return out;
 }
 
 function convertPhoto(cols, rows){
-  var pc = photoCells(cols, rows), n = pc.n, i;
+  var pc = photoCells(cols, rows);
+  if (!pc) return null;
+  var n = pc.n, i;
   var lab = cellsToLab(pc.rgb, n);
 
   /* 区域层：远离边界的内部取「区域均值」抹成平涂大块；边界 KEEP_R 格内
      （眼线、嘴角、下颌线、头发边缘的 2~3 格窄过渡）完全不动。
      取样时不跨边界，避免把暗线糊进脸里。眼睛属边界带，精细度天然保留。 */
-  if (PHOTO.FLAT_MIX > 0){
-    var bd = boundaryDist(pc.line, pc.edge, cols, rows), R = PHOTO.FLAT_R, out = new Float64Array(lab.length);
-    for (var y = 0; y < rows; y++) for (var x = 0; x < cols; x++){
-      i = y * cols + x;
-      out[i * 3] = lab[i * 3]; out[i * 3 + 1] = lab[i * 3 + 1]; out[i * 3 + 2] = lab[i * 3 + 2];
-      if (bd[i] <= PHOTO.KEEP_R) continue;
-      var s0 = 0, s1 = 0, s2 = 0, c = 0;
-      for (var dy = -R; dy <= R; dy++) for (var dx = -R; dx <= R; dx++){
-        var xx = x + dx, yy = y + dy;
-        if (xx < 0 || yy < 0 || xx >= cols || yy >= rows) continue;
-        var j = yy * cols + xx;
-        if (bd[j] <= PHOTO.KEEP_R) continue;
-        s0 += lab[j * 3]; s1 += lab[j * 3 + 1]; s2 += lab[j * 3 + 2]; c++;
-      }
-      if (!c) continue;
-      var w = PHOTO.FLAT_MIX * clamp((bd[i] - PHOTO.KEEP_R) / 2, 0, 1);
-      out[i * 3] = lab[i * 3] + w * (s0 / c - lab[i * 3]);
-      out[i * 3 + 1] = lab[i * 3 + 1] + w * (s1 / c - lab[i * 3 + 1]);
-      out[i * 3 + 2] = lab[i * 3 + 2] + w * (s2 / c - lab[i * 3 + 2]);
-    }
-    lab = out;
-  }
 
-  /* 选色：透明格不参与；线条格加权，眼线、嘴角线这类小面积特征才进得了色板 */
+
+  /* 选色：透明格不参与；线条格加权，亮线格额外加权（眼白/高光才进得了色板） */
   var nOp = 0; for (i = 0; i < n; i++) if (pc.transparent[i] <= 0.5) nOp++;
   var skip = nOp > 0 && nOp < n;
   var labSel = skip ? new Float64Array(nOp * 3) : lab, wSel = new Float64Array(skip ? nOp : n), w = 0;
   for (i = 0; i < n; i++){
     if (skip && pc.transparent[i] > 0.5) continue;
     if (skip){ labSel[w * 3] = lab[i * 3]; labSel[w * 3 + 1] = lab[i * 3 + 1]; labSel[w * 3 + 2] = lab[i * 3 + 2]; }
-    wSel[w++] = 1 + PHOTO.LINE_W * pc.line[i];
+    wSel[w++] = 1 + PHOTO.LINE_W * pc.line[i] + PHOTO.LIGHT_W * (pc.bright ? pc.bright[i] : 0);
   }
-  var K = clamp(Math.round(PHOTO.K_BASE + PHOTO.K_SLOPE * Math.max(cols, rows)), 12, 96);
-  var S = selectPalette(labSel, K, PHOTO.MERGE, wSel);
+  var K = clamp(Math.round(PHOTO.K_BASE + PHOTO.K_SLOPE * Math.max(cols, rows)), 12, PHOTO.K_MAX);
+  var S = selectPalette(labSel, K, PHOTO.MERGE, wSel, true);
 
-  /* 分配 + 平滑：区域格强平滑（脸部成片），线条格和贴边格弱平滑（线条、明暗交界保住） */
+  /* v648 实际豆数闭环：K 只是 k-means 中心数，中心吸附到真实豆色后会大量去重
+     （实测 104 格 K=81 但 S 仅 27~33）。不足目标下限时，直接从全色板挑
+     「与现有豆 ΔE 3~20、且附近确有图像样本」的邻近过渡豆补齐。
+     不用第二次 k-means —— 实测那会让 200 格多花 1.1 秒，只多换回 3~6 色。 */
+  var allowD = null;   /* v648：允许灰豆进入候选，由下面的逐格守卫决定它该用在哪 */
+  var minS = Math.max(12, Math.round(K * PHOTO.K_MIN_RATIO));
+  if (PHOTO.K_MIN_RATIO > 0 && S.length < minS){
+    var plF = palLab(), seenF = {}, candF = [], f0, f1, f2, f3;
+    for (f0 = 0; f0 < S.length; f0++) seenF[S[f0]] = 1;
+    for (f1 = 0; f1 < plF.length; f1++){
+      if (!isAutoColor(f1) || seenF[f1] || (allowD && !allowD[f1])) continue;
+      var RF = plF[f1], bdF = 1e9;
+      for (f2 = 0; f2 < S.length; f2++){
+        var PF = plF[S[f2]], eF = de2000(PF[0], PF[1], PF[2], RF[0], RF[1], RF[2]);
+        if (eF < bdF) bdF = eF;
+      }
+      if (bdF <= 3 || bdF >= 20) continue;   /* 太近=重复，太远=跳色/噪声 */
+      var nearF = 0;
+      for (f3 = 0; f3 < n; f3 += 7){
+        var dlF = lab[f3 * 3] - RF[0], daF = lab[f3 * 3 + 1] - RF[1], dbF = lab[f3 * 3 + 2] - RF[2];
+        if (dlF * dlF + daF * daF + dbF * dbF < 100) nearF++;
+      }
+      if (nearF > 0) candF.push([nearF, bdF, f1]);
+    }
+    candF.sort(function(a, b){ return b[0] - a[0] || a[1] - b[1]; });
+    for (f0 = 0; f0 < candF.length && S.length < minS; f0++) S.push(candF[f0][2]);
+    S.sort(function(a, b){ return a - b; });
+  }
+
   /* 局部加密色板：肤色/暗部的大面积渐变里，相邻豆 ΔE 间隔过大(~11)会把渐变压成
      死平大块。从全 MARD 色板里找位于两豆 Lab 中点的豆补进 S，把台阶降到 ~9。
      只对「同色系、间隔大、中点附近确有图像样本」的豆对补，限量 DENSE_N。 */
   if (PHOTO.DENSE_N > 0){
-    var plD=palLab(),allowD=tonalAllow(lab,n),gaps=[];
+    var plD=palLab(),gaps=[];   /* allowD 由上面的色数闭环统一算好，避免重复 */
     for(var da=0;da<S.length;da++)for(var db=da+1;db<S.length;db++){
       var P=plD[S[da]],Q=plD[S[db]];
       if(Math.hypot(P[1]-Q[1],P[2]-Q[2])>PHOTO.DENSE_CHROMA)continue;
@@ -7393,25 +7381,105 @@ function convertPhoto(cols, rows){
       var M=gaps[gi].mid,best=-1,bd=1e9;
       for(var t=0;t<plD.length;t++){
         if(!isAutoColor(t)||(allowD&&!allowD[t])||seenD[t])continue;
-        var R=plD[t];if(Math.hypot(R[1]-M[1],R[2]-M[2])>PHOTO.DENSE_CHROMA)continue;
-        if(Math.hypot(R[1]-gaps[gi].pa,R[2]-gaps[gi].pb)>PHOTO.DENSE_END_CHROMA)continue;
-        if(Math.hypot(R[1]-gaps[gi].qa,R[2]-gaps[gi].qb)>PHOTO.DENSE_END_CHROMA)continue;
-        var dd=de2000(M[0],M[1],M[2],R[0],R[1],R[2]);if(dd<bd){bd=dd;best=t;}}
+        var RR=plD[t];if(Math.hypot(RR[1]-M[1],RR[2]-M[2])>PHOTO.DENSE_CHROMA)continue;
+        if(Math.hypot(RR[1]-gaps[gi].pa,RR[2]-gaps[gi].pb)>PHOTO.DENSE_END_CHROMA)continue;
+        if(Math.hypot(RR[1]-gaps[gi].qa,RR[2]-gaps[gi].qb)>PHOTO.DENSE_END_CHROMA)continue;
+        var dd=de2000(M[0],M[1],M[2],RR[0],RR[1],RR[2]);if(dd<bd){bd=dd;best=t;}}
       if(best>=0&&bd<gaps[gi].de*PHOTO.DENSE_TOL){seenD[best]=1;S.push(best);added++;}
     }
     S.sort(function(x,y){return x-y;});
   }
 
   var D = buildD(lab, S), m = S.length, lamMap = new Float32Array(n);
+  /* v648：按格灰豆守卫 —— 老规则「画面有彩度就全局禁掉中明度纯灰豆」太粗暴：
+     灰色毛衣、水泥背景本来就中性，禁灰豆后被迫配成暖棕/灰紫，实测 headshot ΔE 5.26→6.46。
+     改成看「这一格」：有彩度的格（肤色）不许落纯灰豆，中性的格不许落高彩度豆，
+     灰豆留在色板里、只服务真正中性的区域。 */
+  {
+    var plG = palLab(), gi, gu, pG, chG, chI;
+    for (gi = 0; gi < n; gi++){
+      if (pc.transparent[gi] > 0.5) continue;
+      chI = Math.hypot(lab[gi * 3 + 1], lab[gi * 3 + 2]);
+      for (gu = 0; gu < m; gu++){
+        pG = plG[S[gu]];
+        if (pG[0] <= 26 || pG[0] >= 92) continue;
+        chG = Math.hypot(pG[1], pG[2]);
+        if (chI > 8 && chG < 6) D[gi * m + gu] += PHOTO.GRAY_GUARD;
+        else if (chI < 6 && chG > 14) D[gi * m + gu] += PHOTO.GRAY_GUARD * 0.5;
+      }
+    }
+  }
+  /* v648：小画布格数少、每格覆盖源像素多，实测孤立点 12.87%（104 格仅 2~5%），按比例提高区域平滑 */
+  var lamFlat = PHOTO.LAM_FLAT * (Math.max(cols, rows) <= PHOTO.SMALL_SIDE ? PHOTO.SMALL_LAM : 1);
   for (i = 0; i < n; i++){
     var keep = Math.max(pc.line[i], pc.edge[i]);
-    lamMap[i] = PHOTO.LAM_FLAT + (PHOTO.LAM_EDGE - PHOTO.LAM_FLAT) * keep;
+    lamMap[i] = lamFlat + (PHOTO.LAM_EDGE - lamFlat) * keep;
     if (pc.transparent[i] > 0.5){ for (var u = 0; u < m; u++) D[i * m + u] = 0; }
   }
-  var a = icmSmooth(D, cols, rows, 0, 3, lamMap);
+  /* v649：渐变区走误差扩散抖动，不再叠加 ICM 平滑 —— 平滑会把刚抖出来的细阶
+     当成孤立点抹掉（这正是历次「优化」把脸越改越平的原因）。
+     线条格 / 贴边格 / 透明格权重置 0，五官轮廓与硬边保持干净。 */
+  var a, dithered = false;
+  var dAmt = (typeof state.ditherAmt === "number") ? state.ditherAmt : 70;
+  if (PHOTO.DITHER > 0 && dAmt > 0){
+    var aRaw = argminD(D, n, m);
+    var wmap = ditherWeights(lab, cols, rows, D, m, aRaw);
+    for (i = 0; i < n; i++){
+      if (pc.line[i] > PHOTO.DITHER_KEEP || pc.edge[i] > 0.6 || pc.transparent[i] > 0.5) wmap[i] = 0;
+    }
+    var dStrength = clamp(autoDitherAmt(lab, cols, rows) / 100 * (dAmt / 70), 0, 1);
+    /* 低档不只是减弱误差，还减少「参与抖动的格子数」，让 0→70 有连续的手感 */
+    if (dAmt < 70){ var dScale = dAmt / 70; for (i = 0; i < n; i++) wmap[i] *= dScale; }
+    a = fsDither(lab, S, cols, rows, dStrength, wmap);
+    dithered = true;
+    /* v654 · 分区渲染：肤色走平滑、结构走抖动。
+       抖动会在平缓的浅肤色上撒单点（实测额头孤立 17.7%），但眼线、下颌线、发丝
+       恰恰靠抖动保住对比。这里同时算一份 ICM 平滑结果，只把「非结构格」换过去；
+       结构格（line/edge 高 或 残差大）原样保留抖动结果，并外扩 1 格保护线的边缘。 */
+    if (PHOTO.ZONE > 0){
+      var aSm = icmSmooth(D, cols, rows, 0, 3, lamMap);
+      var sM = new Uint8Array(n), jj2, bd2, stv;
+      for (i = 0; i < n; i++){
+        stv = Math.max(pc.line[i], pc.edge[i]);
+        bd2 = 1e9;
+        for (jj2 = 0; jj2 < m; jj2++){ var dv2 = D[i * m + jj2]; if (dv2 < bd2) bd2 = dv2; }
+        if (Math.sqrt(bd2) > PHOTO.ZONE_R){ sM[i] = 1; continue; }
+        if (stv <= PHOTO.ZONE_T) continue;
+        /* v654 · 线 vs 面：8 邻里同样强的比例低 = 窄线（眼睑/发丝/下颌线）→ 保锐；
+           比例高 = 一整片皮肤纹路（额头高光）→ 走平滑。 */
+        var x0 = i % cols, y0 = (i / cols) | 0, nb2 = 0, hi2 = 0;
+        for (var dy3 = -1; dy3 <= 1; dy3++) for (var dx3 = -1; dx3 <= 1; dx3++){
+          if (!dx3 && !dy3) continue;
+          var nx3 = x0 + dx3, ny3 = y0 + dy3;
+          if (nx3 < 0 || ny3 < 0 || nx3 >= cols || ny3 >= rows) continue;
+          nb2++;
+          if (Math.max(pc.line[ny3 * cols + nx3], pc.edge[ny3 * cols + nx3]) > PHOTO.ZONE_T * 0.8) hi2++;
+        }
+        if (!nb2 || hi2 / nb2 < PHOTO.ZONE_FLAT) sM[i] = 1;
+      }
+      for (var gd = 0; gd < PHOTO.ZONE_DILATE; gd++){
+        var nxM = new Uint8Array(sM);
+        for (var yy2 = 0; yy2 < rows; yy2++) for (var xx2 = 0; xx2 < cols; xx2++){
+          var qi = yy2 * cols + xx2;
+          if (sM[qi]) continue;
+          for (var dy2 = -1; dy2 <= 1 && !nxM[qi]; dy2++) for (var dx2 = -1; dx2 <= 1; dx2++){
+            if (!dx2 && !dy2) continue;
+            var nxx = xx2 + dx2, nyy = yy2 + dy2;
+            if (nxx < 0 || nyy < 0 || nxx >= cols || nyy >= rows) continue;
+            if (sM[nyy * cols + nxx]){ nxM[qi] = 1; break; }
+          }
+        }
+        sM = nxM;
+      }
+      for (i = 0; i < n; i++) if (!sM[i]) a[i] = aSm[i];
+    }
+  } else {
+    a = icmSmooth(D, cols, rows, 0, 3, lamMap);
+  }
   var codes = new Int32Array(n);
-  for (i = 0; i < n; i++) codes[i] = S[a[i]];   /* 透明格由 imageToPattern 按 st.transparent 置空 */
-  return codes;
+  for (i = 0; i < n; i++) codes[i] = S[a[i]];
+  /* v648：把照片管线真正的目标色 + 透明掩码一起交出去，诊断与置空不再各自猜一套口径 */
+  return { codes: codes, lab: lab, transparent: pc.transparent, dithered: dithered };
 }
 
 function imageToPattern(skipChange){
@@ -7422,50 +7490,41 @@ function imageToPattern(skipChange){
   var cc = computeCells(cols, rows);
   if (!cc) return;
   var st = cc.st, r = cc.rect, cw = cc.cw, chh = cc.chh, n = cc.n, i;
-  var cells = cc.cells, kind = cc.kind || state.sourceMode;   /* v459：用 computeCells 解析后的 kind（auto 已按内容判成 photo/pixel） */
-  var rawCells = cells;                     /* 锐化前的原色，供转换后诊断用 */
-  var lab = cellsToLab(cells, n);
+  var kind = cc.kind || state.sourceMode;   /* auto 已按「未曝光原图」判成 photo/pixel */
+  var lab = (kind === "pixel") ? cellsToLab(cc.cells, n) : null;   /* v648：照片路线不重复转 Lab */
 
   /* 5. 选豆 & 分配 */
   if (!skipChange) beginChange();
-  var codes = new Int32Array(n);
+  var codes = new Int32Array(n), photoInfo = null;
   if (kind === "pixel"){
     /* 像素画：逐格直映全色板（零归纳、零混色），只做轻度平滑去噪点。
-       平滑候选集限定为「初分配实际用到的豆」，既快又不会把色块改成无关色 */
+       平滑候选集限定为「初分配实际用到的豆」，既快又不会把色块改成无关色。
+       v648：删掉 st.illu 恒 false 的插画色板预算分支与 despeckleSkin 死代码。 */
     var Dp = buildD(lab, AUTO_IDX);
     var ap = argminD(Dp, n, AUTO_IDX.length);
     var used = {}, S = [];
     for (i = 0; i < n; i++) if (!used[ap[i]]){ used[ap[i]] = 1; S.push(AUTO_IDX[ap[i]]); }
     S.sort(function(a, b){ return a - b; });
-    /* v438：连续色调图（插画）走「色板预算」—— 全 133 色逐格最近邻会给渐变区撒上零星的
-       灰紫/深红豆（实测红斑、灰斑）；改成只对主体（排除白底）做色板聚类，再把白色补回。
-       真像素画（st.illu=false）完全不走这里，保持零归纳。
-       v458：去掉 !st.thick —— 抗锯齿像素图每格 mean≠mode、md 偏高会被误判厚涂，
-       跳过色板预算直接全色板直映 → 140 色爆炸（色块碎、拼豆琐碎）。连续色调一律走预算。 */
-    if (cc.st.illu){
-      var subj = [];
-      for (i = 0; i < n; i++){
-        var sl = lab[i * 3], sa = lab[i * 3 + 1], sb2 = lab[i * 3 + 2];
-        if (sl > 96 && Math.hypot(sa, sb2) < 4) continue;
-        subj.push(sl, sa, sb2);
-      }
-      if (subj.length / 3 > 40){
-        var S3 = selectPalette(new Float64Array(subj), 28, 2);
-        var wIdx = PINDEX["H2"];
-        /* 只有图里确实有大片白底（被排除的像素 ≥8%）才补回纯白豆；
-           无白底的写实图强行补白会把衬衫高光吸成一块突兀的纯白亮斑 */
-        if (subj.length < n * 3 * 0.92 && S3.indexOf(wIdx) < 0) S3.push(wIdx);
-        S = S3.slice().sort(function(a, b){ return a - b; });
-      }
-    }
     var Ds = buildD(lab, S);
     var asg = argminD(Ds, n, S.length);
     if (state.smooth > 0) asg = icmSmooth(Ds, cols, rows, state.smooth, 2);
     for (i = 0; i < n; i++) codes[i] = S[asg[i]];
-    if (cc.st.illu) codes = despeckleSkin(codes, cols, rows, 40, 2);   /* v439：插画肤色去杂点（v458 去掉 !thick，同上） */
   } else {
-    /* 照片：从头写的干净管线 */
-    codes = convertPhoto(cols, rows);
+    /* 照片：convertPhoto 现在返回 codes + 平涂后的真实目标 Lab + 透明掩码 */
+    photoInfo = convertPhoto(cols, rows);
+    if (!photoInfo) return;
+    codes = photoInfo.codes;
+    /* v648：色数闭环后色板更细，孤立点会略增；统一补一次带原图误差守卫的去杂点。
+       despeckle 只清「4 邻无同色」的真孤点，细线格有同色邻居、又有 errGain 守卫，不会被误删。
+       拉高对比度（实测 5.73%→8.25%）与小画布（孤立点可达 12.87%）多迭代一轮。 */
+    if (!photoInfo.dithered){
+      var dspIters = (state.contrast > 0 || Math.max(cols, rows) <= PHOTO.SMALL_SIDE) ? 3 : 2;
+      codes = despeckle(codes, cols, rows, 10, dspIters, photoInfo.lab);
+    } else if ((typeof state.ditherAmt === "number" ? state.ditherAmt : 70) < 85) {
+      /* 抖动出来的细阶是层次，不能当杂点清；只清色差 >6 的突兀孤点，1 轮即可。
+         85 档以上完全不清理，保留最足的渐变颗粒（最接近早期版本）。 */
+      codes = despeckle(codes, cols, rows, 6, 1, photoInfo.lab);
+    }
   }
 
   /* 生成结果只写进「图纸层」，手绘层一个都不碰 */
@@ -7474,11 +7533,10 @@ function imageToPattern(skipChange){
   var pg = PL.grid;
   for (i = 0; i < n; i++) pg[i] = codes[i] + 1;
   patternShift.dx = 0; patternShift.dy = 0;   /* v465：重新转图 = 图案重新对齐底图，偏移归零 */
-  /* v440：透明背景置空 —— 透明占比过半的格子不放豆（保持透明），不填白豆 */
-  if (st.transparent){
-    for (i = 0; i < n; i++){
-      if (st.transparent[i] > 0.5) pg[i] = 0;
-    }
+  /* v648：透明置空与转换内部使用同一套掩码，消除 68 格的边缘缺豆 */
+  var transMask = photoInfo ? photoInfo.transparent : (st.transparent || null);
+  if (transMask){
+    for (i = 0; i < n; i++){ if (transMask[i] > 0.5) pg[i] = 0; }
   }
   /* 底图没盖到的格子保持空（透明），不填豆 */
   for (var my = 0; my < rows; my++){
@@ -7492,33 +7550,38 @@ function imageToPattern(skipChange){
   PL.visible = true;
   syncActiveGrid();
   if (!skipChange) endChange();
-  lastDiag = diagnose(rawCells, codes, cols, rows, kind, r);
+  lastDiag = diagnose(cc.cells, codes, cols, rows, kind, r, photoInfo);
   finishConvert(cols, rows, kind, Date.now() - t0);
 }
 
 /* 转换诊断：告诉用户这张图「差在哪、该调什么」，而不是让他自己猜参数。
    三项独立判断：① 色域是否被 MARD 色板覆盖（决定要不要抖动）
    ② 每格合并了多少源像素（决定尺寸够不够）③ 平涂占比（决定风格选对没） */
-function diagnose(raw, codes, cols, rows, kind, rect){
+/* 转换诊断：告诉用户这张图「差在哪、该调什么」。
+   v648：照片模式改用 convertPhoto 平涂后的真实目标 Lab（旧版拿 computeCells 的 rawCells，
+   ΔE 系统性偏高、透明图误报「60% 找不到豆色」），并全程排除透明格。 */
+function diagnose(raw, codes, cols, rows, kind, rect, opt){
   var n = cols * rows, i, tips = [];
   var pl = palLab();
+  var tmask = opt ? opt.transparent : null;
+  var tlab = opt ? opt.lab : null;
   /* ① 色板覆盖：找不到接近色的格子占比 */
-  var bad = 0, sumDE = 0;
+  var bad = 0, sumDE = 0, cnt = 0;
   for (i = 0; i < n; i++){
-    if (!pl[codes[i]]) continue;   /* v470：防御 —— 非法色号跳过，绝不让诊断把整条转图流程崩掉 */
-    var L3 = rgb2lab(raw[i * 3], raw[i * 3 + 1], raw[i * 3 + 2]);
+    if (tmask && tmask[i] > 0.5) continue;
+    if (!pl[codes[i]]) continue;   /* v470：防御 —— 非法色号跳过 */
+    var L3 = tlab ? [tlab[i * 3], tlab[i * 3 + 1], tlab[i * 3 + 2]]
+                  : rgb2lab(raw[i * 3], raw[i * 3 + 1], raw[i * 3 + 2]);
     var d = de2000(L3[0], L3[1], L3[2], pl[codes[i]][0], pl[codes[i]][1], pl[codes[i]][2]);
-    sumDE += d;
+    sumDE += d; cnt++;
     if (d > 8) bad++;
   }
-  var badShare = bad / n;
+  var badShare = bad / Math.max(1, cnt);
   if (badShare > 0.40)
     tips.push("颜色 " + Math.round(badShare * 100) + "% 找不到接近的豆色 —— 建议提高格数，用更多格子细化");
   /* ② 尺寸：每格合并的源像素数（越多=细节被平均掉得越狠） */
   var spc = (rect && rect[2] > rect[0] && rect[3] > rect[1])
             ? (rect[2] - rect[0]) * (rect[3] - rect[1]) / n : 0;
-  /* v449：尺寸建议只对「细节多 + 色板覆盖不足」的图提（厚涂插画 badShare≈0.24 需要加大，
-     平涂漫画 badShare≈0.08 色块大、够用，不打扰） */
   if (spc > 32 && badShare > 0.15){
     var want = Math.max(cols + 16, Math.round(cols * Math.sqrt(spc / 22) / 4) * 4);
     want = clamp(want, cols + 16, MAX_SIDE);
@@ -7527,24 +7590,26 @@ function diagnose(raw, codes, cols, rows, kind, rect){
         (want >= MAX_SIDE ? "（已接近上限，可先裁出主体再转）" : "")
       : "还有细节没放下 —— 尺寸加到 " + want + " 格会更清晰");
   }
-  /* ③ 风格：平涂占比（相邻格同色的比例） */
+  /* ③ 风格：平涂占比（相邻格同色的比例），透明格及其相邻对不计 */
   var same = 0, pairs = 0;
   for (var y = 0; y < rows; y++){
     for (var x = 0; x < cols; x++){
-      var v = codes[y * cols + x];
-      if (x + 1 < cols){ pairs++; if (codes[y * cols + x + 1] === v) same++; }
-      if (y + 1 < rows){ pairs++; if (codes[(y + 1) * cols + x] === v) same++; }
+      var ii = y * cols + x;
+      if (tmask && tmask[ii] > 0.5) continue;
+      var v = codes[ii];
+      if (x + 1 < cols){ var j1 = ii + 1; if (!(tmask && tmask[j1] > 0.5)){ pairs++; if (codes[j1] === v) same++; } }
+      if (y + 1 < rows){ var j2 = ii + cols; if (!(tmask && tmask[j2] > 0.5)){ pairs++; if (codes[j2] === v) same++; } }
     }
   }
   var flat = pairs ? same / pairs : 0;
   var nc = {}, ncol = 0;
-  for (i = 0; i < n; i++) if (!nc[codes[i]]){ nc[codes[i]] = 1; ncol++; }
+  for (i = 0; i < n; i++){ if (tmask && tmask[i] > 0.5) continue; if (!nc[codes[i]]){ nc[codes[i]] = 1; ncol++; } }
   /* 平涂 + 用色少 = 像素画特征；单纯「暗部大片同色」不算（那是逆光照片） */
   if (kind === "photo" && flat > 0.78 && ncol <= 14)
     tips.push("这张图 " + Math.round(flat * 100) + "% 是平涂色块、只用 " + ncol + " 色 —— 换「像素画」风格会更干净利落");
   if (kind === "pixel" && flat < 0.32)
     tips.push("这张图是连续色调、几乎没有平涂区 —— 换「照片」风格层次会好很多");
-  return { tips: tips, badShare: badShare, spc: spc, flat: flat, dE: sumDE / n };
+  return { tips: tips, badShare: badShare, spc: spc, flat: flat, dE: sumDE / Math.max(1, cnt) };
 }
 function finishConvert(cols, rows, kind, ms){
   state.showCodes = true;
@@ -8393,7 +8458,7 @@ function applyScale(k){
     state.layers[li].grid = resampleGrid(nc, nr, state.layers[li].grid);
   state.cols = nc; state.rows = nr;
   syncActiveGrid();
-  markAllLayersDirty();
+  
   state.refOff.x = state.refOff.x * nc / oc;      /* 参考图位置按比例跟随 */
   state.refOff.y = state.refOff.y * nr / or_;
   $("inCols").value = nc; $("inRows").value = nr;
@@ -8462,7 +8527,10 @@ function redoRegion(x0, y0, x1, y1){
   /* v470：照片与整图转换用同一份取色（photoCells），亮度/暖肤/透明口径完全一致；
      选区锐化 0.6 保持 v465 用户认可的效果（锐化是零均值的，不改整体明暗） */
   var _kind = cc.kind || state.sourceMode;
-  var _cells = (_kind === "photo") ? photoCells(cols, rows).rgb : cc.cells;
+  var _pcr = null;
+  var _cells = (_kind === "photo") ? (_pcr = photoCells(cols, rows)).rgb : cc.cells;
+  /* v648：透明掩码与整图转换统一用 photoCells 的口径，避免选区边缘缺豆 */
+  var _trans = _pcr ? _pcr.transparent : (cc.st.transparent || null);
   var lab = cellsToLab(cellUnsharp(_cells, cols, rows, 0.6), n);
   /* 选区正好是个矩形 → 直接当成 w×h 的小图纸来配色和分配 */
   var m = w * h, sub = new Float64Array(m * 3), idx = new Int32Array(m), i;
@@ -8508,7 +8576,7 @@ function redoRegion(x0, y0, x1, y1){
     /* 底图没盖到的格子保持空，不填豆（用底图坐标，扣累计偏移） */
     var sy = Math.floor(gi2 / cols) - patternShift.dy, sx = gi2 % cols - patternShift.dx;
     /* v467：透明背景格保持空，不填豆 */
-    if (cc.st.transparent && sy >= 0 && sx >= 0 && sy < rows && sx < cols && cc.st.transparent[sy * cols + sx] > 0.5){ state.grid[gi2] = 0; continue; }
+    if (_trans && sy >= 0 && sx >= 0 && sy < rows && sx < cols && _trans[sy * cols + sx] > 0.5){ state.grid[gi2] = 0; continue; }
     var syc = r[1] + (sy + 0.5) * (r[3] - r[1]) / rows;
     var sxc = r[0] + (sx + 0.5) * (r[2] - r[0]) / cols;
     if (syc < 0 || syc >= chh || sxc < 0 || sxc >= cw){ state.grid[gi2] = 0; continue; }
@@ -8541,6 +8609,9 @@ function simplifyColors(target){
   for (i = 0; i < st.list.length; i++) alive.push(st.list[i].idx);
   var map = {}, moved = [], affected = 0, forced = [];
   function resolve(x){ var g = 0; while (map[x] !== undefined && map[x] !== x && g++ < 999) x = map[x]; return x; }
+  /* v481：记录被标记「不要」的色号。这些格子最终不走全局 map，而是按每格周围的颜色就近并入。 */
+  var banSet = {};
+  for (i = 0; i < st.list.length; i++) if (ban[st.list[i].idx]) banSet[st.list[i].idx] = 1;
 
   /* v465：精简只砍「真·冗余」的色，合并到影像底线自动停 ——
      冗余 = 未锁定 + 用量 <20 颗 + 和某个存活色色差 <8（视觉几乎一样）。
@@ -8561,9 +8632,9 @@ function simplifyColors(target){
       if (fd < fBest){ fBest = fd; fb = alive[i]; }
     }
     if (fb < 0) break;
-    map[fa] = fb;
-    moved.push(PALETTE[fa].id + "\u2192" + PALETTE[fb].id);
-    forced.push(PALETTE[fa].id + "\u2192" + PALETTE[fb].id);
+    map[fa] = fb;   /* 仅用于统计与兜底；实际替换见下方局部就近 */
+    moved.push(PALETTE[fa].id + "\u2192就近并入");
+    forced.push(PALETTE[fa].id + "\u2192就近并入");
     affected += nOf[fa];
     nOf[fb] += nOf[fa];
     alive.splice(alive.indexOf(fa), 1);
@@ -8598,16 +8669,56 @@ function simplifyColors(target){
   }
 
   if (!moved.length){ toast("没有可精简的色号"); return; }
+  /* v481：「不要」色号按每格周围的颜色就近并入 —— 半径 2 邻域里存活色加权投票，
+     谁在旁边就并给谁；周围没有存活色（成片被删区）才退回全局色差最近的那颗。
+     其余冗余色仍走全局 map，避免整图统一换成一个色号造成大片不协调。 */
+  var cols = state.cols, rows = state.rows, aliveSet = {}, aj;
+  for (aj = 0; aj < alive.length; aj++) aliveSet[alive[aj]] = 1;
+  var banFallback = {};
+  for (var bk in banSet) if (banSet.hasOwnProperty(bk)){
+    var src = +bk, bd = 1e18, bv = -1;
+    for (aj = 0; aj < alive.length; aj++){
+      var dd = de2000(lab[src][0], lab[src][1], lab[src][2],
+                      lab[alive[aj]][0], lab[alive[aj]][1], lab[alive[aj]][2]);
+      if (dd < bd){ bd = dd; bv = alive[aj]; }
+    }
+    banFallback[src] = bv;
+  }
+  var orig = state.grid.slice();
+  function localPick(x, y){
+    var votes = {}, bn = 0, bv2 = -1;
+    for (var dy = -2; dy <= 2; dy++) for (var dx = -2; dx <= 2; dx++){
+      if (!dx && !dy) continue;
+      var nx = x + dx, ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= cols || ny >= rows) continue;
+      var vv = orig[ny * cols + nx];
+      if (vv <= 0) continue;
+      var ci2 = vv - 1;
+      if (!aliveSet[ci2]) continue;
+      var w = 1 / (1 + Math.abs(dx) + Math.abs(dy));
+      votes[ci2] = (votes[ci2] || 0) + w;
+    }
+    for (var k in votes) if (votes[k] > bn){ bn = votes[k]; bv2 = +k; }
+    return bn > 0 ? bv2 : -1;
+  }
   beginChange();
-  for (var t = 0; t < state.grid.length; t++){
-    var v = state.grid[t];
-    if (v > 0){ var r = resolve(v - 1); if (r !== v - 1) state.grid[t] = r + 1; }
+  for (var t = 0; t < orig.length; t++){
+    var v = orig[t];
+    if (v <= 0) continue;
+    var ci = v - 1;
+    if (banSet[ci]){
+      var tx = t % cols, ty = (t - tx) / cols, pick = localPick(tx, ty);
+      if (pick < 0) pick = (banFallback[ci] >= 0 ? banFallback[ci] : ci);
+      state.grid[t] = pick + 1;
+    } else {
+      var r = resolve(ci); if (r !== ci) state.grid[t] = r + 1;
+    }
   }
   endChange();
   renderAll(); saveDraft();
   var cur = alive.length;
   var msg = "已精简 " + moved.length + " 个色号（" + st.list.length + " \u2192 " + cur + " 色），改动 " + affected + " 格";
-  if (forced.length) msg += "\n强制移除（标记不要）：" + forced.slice(0, 6).join("、") + (forced.length > 6 ? " 等" : "");
+  if (forced.length) msg += "\n强制移除（标记不要，按周围就近并入）：" + forced.slice(0, 6).join("、") + (forced.length > 6 ? " 等" : "");
   if (moved.length) msg += "\n" + moved.slice(0, 6).join("、") + (moved.length > 6 ? " 等" : "");
   if (cur > target) msg += "\n已到影像底线（剩独特色/成片色块/锁定色），要更少请手动锁定+替换或标记「不要」";
   toast(msg);
@@ -8830,6 +8941,7 @@ function draftSnapshot(){
     warmOn: state.warmOn ? 1 : 0,
     brightness: state.brightness || 0,        /* v406 */
     contrast: state.contrast || 0,            /* v406 */
+    ditherAmt: (typeof state.ditherAmt === "number") ? state.ditherAmt : 70,  /* v649 */
     palCollapsed: state.palCollapsed,
     pinned: state.pinned || {},                /* v130：锁定的色号（精简用色时保留） */
     banned: state.banned || {}                 /* v152：不要的色号（精简用色时强制并入） */
@@ -8868,6 +8980,9 @@ function applyDraftData(d){
   state.sourceMode = "auto";   /* v465：去掉手动切换，全部自动判断真像素画/照片 */
   if (typeof d.brightness === "number") state.brightness = clamp(d.brightness, -100, 100);
   if (typeof d.contrast === "number") state.contrast = clamp(d.contrast, -100, 100);
+  state.ditherAmt = (typeof d.ditherAmt === "number") ? clamp(d.ditherAmt, 0, 100) : 70;
+  if ($("rngDither")) $("rngDither").value = state.ditherAmt;
+  if ($("lbDither")) $("lbDither").textContent = state.ditherAmt;
   if ($("rngBright")) $("rngBright").value = state.brightness;
   if ($("lbBright")) $("lbBright").textContent = state.brightness;
   if ($("rngContrast")) $("rngContrast").value = state.contrast;
@@ -9228,7 +9343,19 @@ function projectJSON(name){
 /* v151：标题带上版本号。改完代码后浏览器常拿着缓存的旧 HTML 继续跑，
    界面上却没有任何地方能看出当前跑的是哪一版，于是「明明改了却还是老样子」很难判断。
    标签页标题一眼可核对（也顺带出现在 Safari/Chrome 的分享标题里）。 */
-var APP_VER = "v478";
+var APP_VER = "v655";
+/* v480：带查询串跳转时保留原有参数。
+   独立站点用 ?sharecode= 做访问控制，以前刷新/版本更新写成 "./?v=..." 会把 sharecode 丢掉，
+   平台直接报「链接不完整」。这里把 v/r 覆盖掉、其余参数（含 sharecode）原样带回。 */
+function reloadKeepQuery(over){
+  try{
+    var sp = new URLSearchParams(location.search || "");
+    for (var k in over) if (over.hasOwnProperty(k)) sp.set(k, over[k]);
+    var q = sp.toString();
+    location.replace("./" + (q ? "?" + q : ""));
+  }catch(e){ location.reload(); }
+}
+
 try{ }catch(e){}
 
 /* v167：回退到「改灰色之前」= v163 的 studio（单层轻白卡）为默认。
@@ -9250,6 +9377,7 @@ try{
    v170 修死锁：v154 的判断是「URL 已带 ?v= 就不跳」——第一次更新后 URL 永久带着
    ?v=v168，之后每次发版都推不下去（用户实测：站点已经 v169，PWA 里还是老页面）。
    改成「URL 里的版本 = 目标版本才算已更新」，并加 sessionStorage 兜底防循环。
+   v480：跳转改用 reloadKeepQuery，保留 sharecode 等原有参数（否则刷新即报链接不完整）。
    资料库节点上 version.txt 是 404，静默跳过。 */
 try{
   fetch("version.txt", { cache: "no-store" }).then(function(r){ return r.ok ? r.text() : ""; }).then(function(t){
@@ -9262,7 +9390,7 @@ try{
     if (last === sv) return;                              /* 这个版本已经跳过了，别循环 */
     try{ sessionStorage.setItem("ks_ver_jump", sv); }catch(e){}
     try{ document.title += "（更新到 " + sv + " 中…）"; }catch(e){}
-    setTimeout(function(){ location.replace("./?v=" + encodeURIComponent(sv) + "&r=" + Date.now()); }, 400);
+    setTimeout(function(){ reloadKeepQuery({ v: sv, r: Date.now() }); }, 400);
   }).catch(function(){});
 }catch(e){}
 
@@ -9452,490 +9580,25 @@ function pngDataText(){
   return utf8ToB64(JSON.stringify(d));
 }
 
-/* --- 图像识别兜底 --- */
-function palRgb(idx){ return hexToRgb(PALETTE[idx].h); }
-function nearestPalIdx(r, g, b){
-  var best = -1, bd = 1e9, i, p, d;
-  for (i = 0; i < PALETTE.length; i++){
-    p = palRgb(i);
-    d = (r - p[0]) * (r - p[0]) + (g - p[1]) * (g - p[1]) + (b - p[2]) * (b - p[2]);
-    if (d < bd){ bd = d; best = i; }
-  }
-  return best;
-}
-/* 一列/一行的「边缘能量」：网格线贯穿整列，文字只在局部，能量差很大 */
-function edgeEnergy(gray, W, H, horiz, a0, a1, b0, b1){
-  var out = [], n = horiz ? W : H, t, u, sum;
-  for (t = 0; t < n; t++) out.push(0);
-  for (t = 1; t < n; t++){
-    sum = 0;
-    for (u = b0; u < b1; u++){
-      var i0 = horiz ? (u * W + t) : (t * W + u);
-      var i1 = horiz ? (u * W + t - 1) : ((t - 1) * W + u);
-      sum += Math.abs(gray[i0] - gray[i1]);
-    }
-    out[t] = sum / Math.max(1, b1 - b0);
-  }
-  return out;
-}
-/* 「墨迹密度」：一条扫描线上非白像素的比例。
-   图纸区每一列/行都有网格线穿过，纸外（留白、间隔带）几乎全白 —— 用它圈定图纸矩形，
-   比在峰里找链稳得多（图例卡片的边框不会混进来）。 */
-function inkProfile(gray, W, H, byRow, a0, a1){
-  var n = byRow ? H : W, out = new Float32Array(n), t, u, cnt, i;
-  a0 = Math.max(0, a0 | 0); a1 = Math.min(byRow ? W : H, a1 | 0);
-  for (t = 0; t < n; t++){
-    cnt = 0;
-    for (u = a0; u < a1; u++){
-      i = byRow ? (t * W + u) : (u * W + t);
-      if (gray[i] < 248) cnt++;
-    }
-    out[t] = cnt / Math.max(1, a1 - a0);
-  }
-  return out;
-}
-/* 最长的连续「有墨」区间。maxGap：允许桥接的小间隙数 ——
-   图纸里整列/整行都是空格很常见（比如图案边缘），那几列只剩格线，密度会掉到阈值以下，
-   不允许间隙的话区间会在这里断掉，后面算出来的格数就全错了。 */
-function longestDense(P, thr, maxGap){
-  var n = P.length, best = null, i = 0, start, gap, j, end;
-  maxGap = maxGap || 0;
-  while (i < n){
-    if (P[i] < thr){ i++; continue; }
-    start = i; gap = 0; j = i;
-    while (j < n){
-      if (P[j] >= thr){ gap = 0; j++; continue; }
-      if (gap >= maxGap) break;
-      gap++; j++;
-    }
-    end = j - 1;
-    while (end > start && P[end] < thr) end--;      /* 尾部因桥接混入的低点去掉 */
-    if (!best || (end - start) > (best.b - best.a)) best = { a: start, b: end };
-    i = j + 1;
-  }
-  return best;
-}
-/* 从 [a,b] 两端按周期 T 外扩：只要下一根确实是格线就继续。
-   端点必须吸附到最近的格线再出发 —— 墨迹区的端点常偏几像素，
-   直接用 a±T 会一格一格错开，扩两格就撞不到线了。 */
-function growEdge(isLine, a, b, T, lo, hi, maxStep){
-  var tol = Math.max(2, T * 0.35);
-  function snap(v){
-    var p, s = -1, bd = 1e9;
-    for (p = Math.round(v - tol); p <= Math.round(v + tol); p++){
-      if (p < lo || p > hi) continue;
-      if (isLine(p) && Math.abs(p - v) < bd){ bd = Math.abs(p - v); s = p; }
-    }
-    return s;
-  }
-  var sa = snap(a), sb = snap(b), guard = 0, nx;
-  if (sa >= 0) a = sa;
-  if (sb >= 0) b = sb;
-  maxStep = maxStep || 3;
-  var limited = false;
-  while (guard++ < maxStep){
-    nx = snap(a - T);
-    if (nx < 0 || nx >= a - 1) break;
-    a = nx;
-    if (guard >= maxStep) limited = true;      /* 撞到步数上限 = 边界没找全 */
-  }
-  guard = 0;
-  while (guard++ < maxStep){
-    nx = snap(b + T);
-    if (nx < 0 || nx <= b + 1) break;
-    b = nx;
-    if (guard >= maxStep) limited = true;
-  }
-  return { a: a, b: b, limited: limited };
-}
-/* 格线贯穿度：真实网格线会贯穿整列/整行，随机图里的色块边缘不会。
-   这是把「不是本工具的图」挡在门外的主要闸门。 */
-function lineCoverage(ink, a, T, cells){
-  var hit = 0, k, idx;
-  for (k = 0; k <= cells; k++){
-    idx = Math.round(a + k * T);
-    if (idx >= 0 && idx < ink.length && ink[idx] >= 0.6) hit++;
-  }
-  return hit / (cells + 1);
-}
-function energyPeaks(E){
-  var n = E.length, max = 0, mean = 0, i, thr, out = [], a, b, c, d2;
-  for (i = 0; i < n; i++){ if (E[i] > max) max = E[i]; mean += E[i]; }
-  mean /= (n || 1);
-  if (max <= 0) return out;
-  thr = Math.max(mean * 1.3, max * 0.08);
-  for (i = 1; i < n - 1; i++){
-    if (E[i] < thr) continue;
-    if (E[i] >= E[i-1] && E[i] >= E[i+1]){
-      a = E[i-1]; b = E[i]; c = E[i+1];
-      d2 = (a - c) / (2 * (a - 2 * b + c) || 1);
-      out.push(i + (Math.abs(d2) < 1 ? d2 : 0));
-    }
-  }
-  return out;
-}
-/* 求网格周期：对边缘能量序列做自相关。
-   比「相邻峰间距众数」稳得多 —— 个别格线检测不到只会让间距变成 2T/3T 污染众数，
-   自相关看的是整条序列的周期性，缺几根线几乎不影响。 */
-function guessPeriod(E, lo, hi){
-  var n = E.length, i, d, mean = 0, v, s, R0, best = 0, bestR = -1e18;
-  if (n < 24) return 0;
-  for (i = 0; i < n; i++) mean += E[i];
-  mean /= n;
-  v = new Float32Array(n);
-  for (i = 0; i < n; i++) v[i] = E[i] - mean;
-  R0 = 0;
-  for (i = 0; i < n; i++) R0 += v[i] * v[i];
-  if (R0 <= 0) return 0;
-  lo = Math.max(5, lo | 0); hi = Math.min(hi | 0, Math.floor(n / 3));
-  if (hi <= lo) return 0;
-  var R = new Float32Array(hi + 2), maxR = -1e18;
-  for (d = lo; d <= hi; d++){
-    s = 0;
-    for (i = 0; i + d < n; i++) s += v[i] * v[i + d];
-    s /= (n - d);
-    R[d] = s;
-    if (s > maxR){ maxR = s; best = d; }
-  }
-  if (maxR <= 0) return 0;
-  /* 取「最小的显著局部极大」= 基频。
-     导出图每 5 格虚线、每 10 格实线都比每格细线更黑，直接取全局最大会拿到 5T/10T 的谐波
-     （实测拿到 114，真实周期是 11.4），所以必须从低频侧挑第一个够高的峰。 */
-  for (d = lo + 1; d < hi; d++){
-    if (R[d] >= maxR * 0.45 && R[d] >= R[d-1] && R[d] >= R[d+1]) return d;
-  }
-  return best;
-}
-/* 折叠打分：把能量序列按 mod T 折叠到 32 个相位桶里。
-   真实周期 → 所有格线落进同一个桶（1 个尖峰）；
-   周期的 1/k → 格线散到 k 个桶里（k 个等高峰）。
-   不用峰检测 —— 真实 JPEG 图上色号文字会产生大量噪声峰
-   （52 格的图测出 340 个峰，真格线只有 53 根），投票法会被冲垮。 */
-function foldBins(E, T){
-  var n = E.length, i, nb = 32, bins = new Float64Array(nb), cnt = new Float64Array(nb), b;
-  for (i = 0; i < n; i++){
-    b = Math.floor((i % T) / T * nb) % nb;
-    bins[b] += E[i]; cnt[b]++;
-  }
-  var mean = 0;
-  for (i = 0; i < nb; i++){ bins[i] /= Math.max(1, cnt[i]); mean += bins[i]; }
-  mean /= nb;
-  return { bins: bins, mean: mean };
-}
-function foldScore(E, T){
-  if (T < 3 || E.length < T * 4) return 0;
-  var f = foldBins(E, T), i, mx = 0;
-  for (i = 0; i < 32; i++) mx = Math.max(mx, f.bins[i]);
-  return f.mean > 0 ? (mx - f.mean) / f.mean : 0;
-}
-/* 亚像素细化：格线是 0.x 像素级的偏移，整数周期累积几十格就偏出好几像素 */
-function polishPeriod(E, T){
-  var best = T, bestS = foldScore(E, T), t, sc, span = 0.8 + T * 0.06;
-  for (t = T - span; t <= T + span; t += 0.05){
-    sc = foldScore(E, t);
-    if (sc > bestS){ bestS = sc; best = t; }
-  }
-  return best;
-}
-/* 用链反推精确周期：自相关只能给整数近似，累积 50 格会偏出好几像素；
-   这里在 ±3 格里挑「格线命中率最高」的格数，再用 (b-a)/格数 得到浮点周期。 */
-function refineCells(peaks, a, b, T0){
-  var base = Math.max(2, Math.round((b - a) / T0)), best = base, bestScore = -1;
-  var cells, k, p, j, hit, tol, T, sc;
-  for (cells = base - 3; cells <= base + 3; cells++){
-    if (cells < 2) continue;
-    T = (b - a) / cells;
-    tol = Math.max(2, T * 0.35);
-    hit = 0;
-    for (k = 0; k <= cells; k++){
-      p = a + k * T;
-      for (j = 0; j < peaks.length; j++){
-        if (peaks[j] > p + tol) break;
-        if (peaks[j] >= p - tol){ hit++; break; }
-      }
-    }
-    sc = hit / (cells + 1);
-    if (sc > bestScore){ bestScore = sc; best = cells; }
-  }
-  return { cells: best, T: (b - a) / best, score: bestScore };
-}
 
-/* 在给定的候选色号里找最近的 */
-function nearestInIdxs(idxs, r, g, b){
-  var best = idxs[0], bd = 1e9, i, p, d;
-  for (i = 0; i < idxs.length; i++){
-    p = palRgb(idxs[i]);
-    d = (r - p[0]) * (r - p[0]) + (g - p[1]) * (g - p[1]) + (b - p[2]) * (b - p[2]);
-    if (d < bd){ bd = d; best = idxs[i]; }
-  }
-  return best;
-}
-/* 从图例里读出这张图用到的颜色（返回调色板索引数组）。
-   导出版式是固定的：图例在图纸下方，卡片按 (itemW+gapX) × (itemH+gapY) 网格排列，
-   卡片上方 61% 是纯色块 —— 直接按公式算出每张卡片的位置去取色，不用 OCR。
-   卡片顶上有一条贯穿的淡边框，用它判断那里到底有没有卡片。 */
-function legendPalette(px, gray, W, H, kk, cols, rows, oxLay, oyLay, rlLay){
-  try{
-    var Wl = W / kk;
-    var infoFs = Math.max(22, Math.min(46, Math.round(Wl * 0.013)));
-    var lgK = infoFs / 24;
-    var itemW = Math.round(78 * lgK), itemH = Math.round(54 * lgK);
-    var gapX = 12, gapY = 14;
-    var perRow = Math.max(1, Math.floor((cols * 32 + gapX) / (itemW + gapX)));
-    var ly = oyLay + rows * 32 + rlLay + Math.round(14 * lgK);   /* 下边距 rb 与左右标尺同宽 */
-    var idxs = [], seen = {}, k, cxp, cyp, kx, ky, iw, ih;
-    var x0p, x1p, yp, u, i, cnt, n, sx, sy, r2, g2, b2, pi;
-    for (k = 0; k < perRow * 10; k++){
-      cxp = oxLay + (k % perRow) * (itemW + gapX);
-      cyp = ly + Math.floor(k / perRow) * (itemH + gapY);
-      kx = cxp * kk; ky = cyp * kk; iw = itemW * kk; ih = itemH * kk;
-      x0p = Math.round(kx) + 3; x1p = Math.round(kx + iw) - 3; yp = Math.round(ky);
-      if (yp < 1 || yp >= H - 1 || x1p - x0p < 4 || x0p < 0 || x1p >= W) break;
-      /* 卡片在不在：看下半部分的色号 + 数量文字。
-         （顶边框只有 1px、还是 14% 的黑，图一被缩放/转 JPEG 就淡到抓不住了） */
-      var yb0 = Math.round(ky + ih * 0.62), yb1 = Math.round(ky + ih * 0.95), v2;
-      if (yb1 >= H) break;
-      cnt = 0; n = 0;
-      for (u = x0p; u < x1p; u++){
-        for (v2 = yb0; v2 <= yb1; v2++){
-          i = v2 * W + u; n++; if (gray[i] < 246) cnt++;
-        }
-      }
-      if (n < 8 || cnt / n < 0.025){ if (k % perRow === 0) break; continue; }
-      /* 色块中心：卡片上部 61% 的中间 */
-      sx = Math.round(kx + iw / 2); sy = Math.round(ky + ih * 0.305);
-      if (sx < 1 || sy < 1 || sx >= W - 1 || sy >= H - 1) break;
-      r2 = 0; g2 = 0; b2 = 0;
-      for (u = -1; u <= 1; u++){
-        i = (sy + u) * W + sx;
-        r2 += px[i*4]; g2 += px[i*4+1]; b2 += px[i*4+2];
-      }
-      r2 /= 3; g2 /= 3; b2 /= 3;
-      pi = nearestPalIdx(r2, g2, b2);
-      if (!seen[pi]){ seen[pi] = 1; idxs.push(pi); }
-    }
-    return idxs;
-  }catch(e){ return null; }
-}
-function recognizeImage(img){
-  var nw = img.naturalWidth || img.width, nh = img.naturalHeight || img.height, i, x, y;
-  if (!nw || !nh) return null;
-  var s = Math.min(1, 2000 / Math.max(nw, nh));
-  var W = Math.max(16, Math.round(nw * s)), H = Math.max(16, Math.round(nh * s));
-  var cv = document.createElement("canvas"); cv.width = W; cv.height = H;
-  var c = cv.getContext("2d", { willReadFrequently: true });
-  c.fillStyle = "#FFFFFF"; c.fillRect(0, 0, W, H);   /* v153：同样白底化，透明区不参与墨迹统计 */
-  c.drawImage(img, 0, 0, W, H);
-  var px;
-  try{ px = c.getImageData(0, 0, W, H).data; }catch(e){ return null; }
-  var N = W * H, gray = new Uint8Array(N);
-  for (i = 0; i < N; i++) gray[i] = (px[i*4] * 77 + px[i*4+1] * 150 + px[i*4+2] * 29) >> 8;
 
-  /* ① 种子区间：墨迹密度（图纸外几乎全白，图例与信息条被留白带隔开） */
-  var colInk = inkProfile(gray, W, H, false, 0, H);
-  var sx = longestDense(colInk, 0.03, 0);
-  if (!sx) return null;
-  var rowInk = inkProfile(gray, W, H, true, sx.a, sx.b);
-  var sy = longestDense(rowInk, 0.03, 0);
-  if (!sy) return null;
-  var x0 = sx.a, x1 = sx.b, y0 = sy.a, y1 = sy.b;
 
-  /* ② 周期：图纸纵向范围内的列边缘自相关 */
-  var colE = edgeEnergy(gray, W, H, true, 0, 0, y0, y1);
-  var cp = energyPeaks(colE), T0i = guessPeriod(colE, 5, 160);
-  if (!T0i) return null;
-  var T0 = polishPeriod(colE, T0i);      /* 直接喂能量序列，峰噪声不参与周期判定 */
 
-  /* ③ 沿格线外扩：整列/整行都空（图案边缘很常见）会让墨迹区在这里断掉，
-     但格线本身还在 —— 所以按「下一根是不是贯穿的格线」往外扩，空不空无所谓。 */
-  /* 「贯穿」还不够 —— 图例卡片的行也是大片有色的，会被误当成格线往外扩。
-     真正的格线是一条贯穿到底的直线（最长连续墨迹段几乎等于整行/整列），
-     图例卡片则是一段一段的，中间有留白。 */
-  /* 「贯穿的直线」判据：整条线基本连着，**断开的地方只有一两个像素**。
-     图例卡片行也是大片有色的，但卡片之间留白十几像素 —— 用「最大断口」一测就露馅。
-     （别用段数判：格线被 JPEG 冲断后也会有十几段，会把真格线一起挡掉。） */
-  var maxGapOK = Math.max(3, T0 * 0.15);
-  var colIsLine = function(x){
-    var u, i, cnt = 0, n = 0, run = 0, best = 0, gap = 0, mg = 0;
-    for (u = y0; u <= y1; u++){
-      i = u * W + x; n++;
-      if (gray[i] < 248){ cnt++; run++; if (run > best) best = run; gap = 0; }
-      else { run = 0; gap++; if (gap > mg) mg = gap; }
-    }
-    return n > 0 && cnt / n >= 0.5 && best / n >= 0.5 && mg <= maxGapOK;
-  };
-  var gx = growEdge(colIsLine, x0, x1, T0, 0, W - 1, 40);
-  x0 = gx.a; x1 = gx.b;
-  var rowIsLine = function(y){
-    var u, i, cnt = 0, n = 0, run = 0, best = 0, gap = 0, mg = 0;
-    for (u = x0; u <= x1; u++){
-      i = y * W + u; n++;
-      if (gray[i] < 248){ cnt++; run++; if (run > best) best = run; gap = 0; }
-      else { run = 0; gap++; if (gap > mg) mg = gap; }
-    }
-    return n > 0 && cnt / n >= 0.5 && best / n >= 0.5 && mg <= maxGapOK;
-  };
-  var gy = growEdge(rowIsLine, y0, y1, T0, 0, H - 1, 40);
-  y0 = gy.a; y1 = gy.b;
-  /* 外扩被步数上限截断 = 图纸边界没找全，硬凑出来的尺寸一定是错的。
-     认不出来没关系（还有工程文件和内嵌数据两条路），给出一张错的图纸才糟糕。 */
-  if (gx.limited || gy.limited) return null;
-  /* 外扩后格线更全，重算一次峰与格数 */
-  colE = edgeEnergy(gray, W, H, true, 0, 0, y0, y1);
-  cp = energyPeaks(colE);
-  var rx = refineCells(cp, x0, x1, T0);
-  if (rx.score < 0.6) return null;                /* 格线对不上，多半不是本工具的图 */
-  /* 格数用版式先验直接算，不靠外扩走没走完：
-     导出图宽 = cols×32 + 52 + 2×标尺（都是布局单位），
-     标尺多宽由「图纸左边界 x0」反推 —— x0 只要是最左那根格线就够了。
-     以前是拿外扩出来的格数去选常量，外扩一中断就选错，结果把好图判成认不出来。 */
-  var kk = T0 / 32;
-  var rlLay = Math.max(0, x0 / kk - 26);
-  if (rlLay < 12) rlLay = 0;                      /* 这张没画标尺 */
-  if (rlLay > 60) rlLay = 28;                     /* 明显跑偏时退回经验值 */
-  var est = W / T0 - (52 + 2 * rlLay) / 32;
-  var cols = Math.round(est);
-  if (Math.abs(est - cols) > 0.4) return null;    /* 周期不准的话格数就不会是整数 */
-  if (cols < 4 || cols > MAX_SIDE) return null;
-  var T = T0;                                     /* 格子是正方形，横竖同一个周期 */
-  var rows = Math.max(1, Math.round((y1 - y0) / T));
-  if (rows < 4 || rows > MAX_SIDE) return null;
-  /* 双向校验：本工具的图横竖是同一套网格。随机照片/普通图很难同时满足
-     「纵向也是这个周期」且「格线命中率够高」—— 这是拒绝无关图片的主要闸门。 */
-  var rowE = edgeEnergy(gray, W, H, false, 0, 0, x0, x1);
-  var rp = energyPeaks(rowE), Ty0i = guessPeriod(rowE, Math.max(5, Math.round(T * 0.6)), Math.round(T * 1.6));
-  if (!Ty0i) return null;
-  var Ty0 = polishPeriod(rowE, Ty0i);
-  if (Math.abs(Ty0 - T) > Math.max(2, T * 0.35)) return null;
-  var ry = refineCells(rp, y0, y1, Ty0);
-  if (ry.score < 0.5) return null;
-  if (Math.abs(ry.cells - rows) > Math.max(2, Math.round(rows * 0.12))) return null;
-  /* 格线必须真的贯穿：随机照片/普通图很难让绝大多数候选线都贯穿整列整行 */
-  if (lineCoverage(inkProfile(gray, W, H, false, y0, y1), x0, T, cols) < 0.5) return null;
-  if (lineCoverage(inkProfile(gray, W, H, true, x0, x1), y0, T, rows) < 0.5) return null;
 
-  /* v90：先从图例里取出「这张图真正用到的颜色」。
-     图例卡片就是调色板的子集（26 色就是 26 张卡片），每格只在这十几种颜色里挑，
-     比在整本 100+ 色的调色板里找精确得多 —— 相近色（G5/G8 之类）再也不会互相认错。 */
-  var palSet = legendPalette(px, gray, W, H, T / 32, cols, rows, x0 / (T / 32), y0 / (T / 32), rlLay);
 
-  /* 逐格取主色：格内 4×4 采样 + 量化众数，避开网格线与格内色号文字 */
-  /* 采样点要随格子大小自适应：格子大时往里收避开格线，格子小时不能太靠边。
-     固定 0.12 在 30 格缩略图（T≈20px）上正好压在格线上，会把整格认错。 */
-  /* 采样 6×6：靠边的点躲开格线，靠内的点在「没印色号」的图上更准，
-     最后按量化众数定色 —— 色号文字只占中间一小块，永远压不过边缘的票。 */
-  var ins = Math.min(0.26, Math.max(3 / T, 0.13));
-  var SAFE_PT = [ins, ins + 0.10, ins + 0.20, 1 - ins - 0.20, 1 - ins - 0.10, 1 - ins];
-  var grid = new Array(cols * rows), cbuf = new Float32Array(cols * rows * 3);
-  var cx, cy, si, sj, sx, sy, o, key, bucket, bestKey, bestN2;
-  var sumR, sumG, sumB, cnt, rr2, gg2, bb2, white, filled = 0;
-  for (cy = 0; cy < rows; cy++){
-    for (cx = 0; cx < cols; cx++){
-      bucket = {}; bestKey = -1; bestN2 = 0;
-      for (si = 0; si < 6; si++){
-        for (sj = 0; sj < 6; sj++){
-          /* 采样点落在「安全带」：格线占 0~0.06，色号文字占 0.29~0.71，
-             只在 0.12/0.22/0.78/0.88 取点才能拿到格子本来的颜色。 */
-          sx = Math.round(x0 + (cx + SAFE_PT[si]) * T);
-          sy = Math.round(y0 + (cy + SAFE_PT[sj]) * T);
-          if (sx < 0 || sy < 0 || sx >= W || sy >= H) continue;
-          o = (sy * W + sx) * 4;
-          key = ((px[o] >> 4) << 8) | ((px[o+1] >> 4) << 4) | (px[o+2] >> 4);
-          if (bucket[key] === undefined) bucket[key] = [0, 0, 0, 0];
-          bucket[key][0]++; bucket[key][1] += px[o]; bucket[key][2] += px[o+1]; bucket[key][3] += px[o+2];
-          if (bucket[key][0] > bestN2){ bestN2 = bucket[key][0]; bestKey = key; }
-        }
-      }
-      if (bestKey < 0) continue;
-      cnt = bucket[bestKey][0];
-      cbuf[(cy * cols + cx) * 3]     = bucket[bestKey][1] / cnt;
-      cbuf[(cy * cols + cx) * 3 + 1] = bucket[bestKey][2] / cnt;
-      cbuf[(cy * cols + cx) * 3 + 2] = bucket[bestKey][3] / cnt;
-    }
-  }
-  /* 定色号：空格底色是**纯白** (255,255,255)；白豆画的是 #FEFEFE —— 只差 1，
-     肉眼看不出，但识别能分开。JPEG 会把这个差别糊掉（254/255 乱跳），
-     那时白豆和空格确实无法区分，属于物理极限。 */
-  var onPal = 0;
-  var assign = function(idxs){
-    var i, r2, g2, b2, pi, pc, dmin, v;
-    onPal = 0; filled = 0;
-    for (i = 0; i < grid.length; i++){
-      r2 = cbuf[i*3]; g2 = cbuf[i*3+1]; b2 = cbuf[i*3+2];
-      if (!r2 && !g2 && !b2){ grid[i] = 0; continue; }
-      if (r2 > 254.5 && g2 > 254.5 && b2 > 254.5){ grid[i] = 0; continue; }   /* 纯白 = 空格 */
-      pi = idxs ? nearestInIdxs(idxs, r2, g2, b2) : nearestPalIdx(r2, g2, b2);
-      pc = palRgb(pi);
-      dmin = (r2 - pc[0]) * (r2 - pc[0]) + (g2 - pc[1]) * (g2 - pc[1]) + (b2 - pc[2]) * (b2 - pc[2]);
-      v = pi + 1;
-      grid[i] = v;
-      if (v){ filled++; if (dmin <= 900) onPal++; }      /* 900 ≈ 每通道差 17 */
-    }
-  };
-  /* 两套都算，取更贴合的那套：图例取对了能修掉相近色混淆，
-     图例取歪了（卡片位置算偏）反而更糟 —— 所以用「落色调色板的比例」来选。 */
-  assign(null);
-  var bFilled = filled, bOnPal = onPal, bGrid = grid.slice();
-  var bRate = bFilled ? bOnPal / bFilled : 0;
-  if (palSet && palSet.length >= 2){
-    var set = palSet.slice(), far = [], i2, r3, g3, b3, pi2, pc2, d2;
-    assign(set);
-    /* 图例难免漏几张卡片（色号文字太淡）：把离图例色都远的格子按整本调色板认一次，
-       把认出来的色号补进集合，缺的颜色就自己补上了 */
-    for (i2 = 0; i2 < grid.length; i2++){
-      r3 = cbuf[i2*3]; g3 = cbuf[i2*3+1]; b3 = cbuf[i2*3+2];
-      if (!r3 && !g3 && !b3) continue;
-      pi2 = nearestInIdxs(set, r3, g3, b3); pc2 = palRgb(pi2);
-      d2 = (r3 - pc2[0]) * (r3 - pc2[0]) + (g3 - pc2[1]) * (g3 - pc2[1]) + (b3 - pc2[2]) * (b3 - pc2[2]);
-      if (d2 > 400){
-        var pj = nearestPalIdx(r3, g3, b3);
-        if (far.indexOf(pj) < 0) far.push(pj);
-      }
-    }
-    if (far.length) assign(set.concat(far));
-    var sRate = filled ? onPal / filled : 0;
-    if (sRate < bRate - 0.02){ grid = bGrid; filled = bFilled; onPal = bOnPal; }
-  }
-  if (!filled) return null;
-  /* 别裁「全空的边」：图案居中时最外一圈本来就是空的，裁掉等于少一格，整张图就错位了。
-     边界是否找对交给外扩的格线判据和「图宽/周期」校验去保证。 */
-  /* 颜色闸门：本工具的图，每格都是调色板里的纯色（压缩后也只差几个色阶）。
-     普通照片/随机图的颜色是连续的，绝大多数格子都落不到调色板上 —— 据此判不是我们的图纸。 */
-  if (onPal / filled < 0.9) return null;
-  return { cols: cols, rows: rows, grid: grid, filled: filled };
-}
-/* 识别结果落地：先安置当前内容（guardCurrent）再载入，与导入工程文件一致 */
-function applyRecognized(res, name){
-  var d = {
-    cols: res.cols, rows: res.rows, ver: 2,
-    layers: [{ n: "图纸层", k: "pattern", o: 100, v: 1, l: 0, r: rleEncode(res.grid) }],
-    active: 0, sourceMode: "auto"
-  };
-  guardCurrent(function(){
-    applyDraftData(d);
-    curDraftId = 0;
-    renderAll(); renderLayerPanel(); updateStats && updateStats();
-    updatePaletteMarks && updatePaletteMarks();
-    centerCanvas(); saveDraft(); closeDraftBox();
-    toast("已识别 " + res.cols + "×" + res.rows + "（" + res.filled + " 格）");
-  });
-}
-/* 图片导入：先读内嵌数据，读不到再图像识别 */
-function importImage(file){
-  readArrayBuffer(file).then(function(ab){
-    var raw = pngReadText(ab, PNG_KEY), text = raw ? b64ToUtf8(raw) : null;
-    if (text && applyProjectText(text)) return;      /* 内嵌数据：精确还原 */
-    var url = URL.createObjectURL(file), im = new Image();
-    im.onload = function(){
-      URL.revokeObjectURL(url);
-      var res = recognizeImage(im);
-      if (!res){ toast("这张图认不出来"); return; }
-      applyRecognized(res, file.name || "");
-    };
-    im.onerror = function(){ URL.revokeObjectURL(url); toast("图片打不开"); };
-    im.src = url;
-  }).catch(function(){ toast("文件读不出来"); });
-}
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 /* v277：文件统一入口 —— 按内容嗅探分流（电脑端上传图片 / 导入文件共用）
    · json / .bead            → 读工程文件
@@ -10454,7 +10117,9 @@ function newCanvas(){
       state.refOff.x = 0; state.refOff.y = 0; state.refVisible = true;
       /* v476：新建 = 全新状态。亮度/对比度必须一起归零并同步滑杆与数值，
          否则会继承上一张图的「图纸优化」参数（用户实测新建后对比度仍是 5）。 */
-      state.brightness = 0; state.contrast = 0;
+      state.brightness = 0; state.contrast = 0; state.ditherAmt = 70;
+      if ($("rngDither")) $("rngDither").value = 70;
+      if ($("lbDither")) $("lbDither").textContent = 70;
       if ($("rngBright")) $("rngBright").value = 0;
       if ($("lbBright")) $("lbBright").textContent = 0;
       if ($("rngContrast")) $("rngContrast").value = 0;
@@ -10462,7 +10127,7 @@ function newCanvas(){
       undoStack.length = 0; redoStack.length = 0; snapshotBefore = null;
       curDraftId = 0;
       applyProjName(nm);
-      markAllLayersDirty();
+      
       renderAll(); renderLayerPanel();
       updateStats && updateStats(); updatePaletteMarks && updatePaletteMarks(); updateRefUI();
       setStageControls();
@@ -10525,9 +10190,9 @@ function installRefreshBtn(){
         var sv = String(t || "").trim();
         if (sv && sv !== APP_VER){
           toast("发现新版本 " + sv + "，正在更新…");
-          setTimeout(function(){ location.replace("./?v=" + encodeURIComponent(sv) + "&r=" + Date.now()); }, 400);
+          setTimeout(function(){ reloadKeepQuery({ v: sv, r: Date.now() }); }, 400);
         } else {
-          location.replace("./?r=" + Date.now());
+          reloadKeepQuery({ r: Date.now() });
         }
       }).catch(function(){ location.reload(); });
     }catch(e){ location.reload(); }
@@ -10580,6 +10245,17 @@ function buildExposureControls(){
   }
   bind("rngBright", "lbBright", "brightness");
   bind("rngContrast", "lbContrast", "contrast");
+  /* v649：资料库同步链路偶尔丢静态 input，运行时兜底补一份 */
+  if (!$("rngDither")){
+    var anchor = $("rngContrast"), grp0 = anchor && anchor.closest ? anchor.closest(".grp") : null;
+    if (grp0 && grp0.parentNode){
+      var g = document.createElement("div"); g.className = "grp";
+      g.innerHTML = '<div class="fld"><label class="f">脸部层次 <b id="lbDither">70</b></label>' +
+                    '<input id="rngDither" min="0" max="100" step="5" type="range" value="70"></div>';
+      grp0.parentNode.insertBefore(g, grp0.nextSibling);
+    }
+  }
+  bind("rngDither", "lbDither", "ditherAmt");
 }
 /* =========================================================
    v188：把 PWA 窗口那条系统标题栏染成页面底色
