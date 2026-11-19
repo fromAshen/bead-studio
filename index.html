@@ -29,10 +29,10 @@ if (touch) d.classList.add("touch");
 <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
 <link rel="manifest" href="manifest.webmanifest">
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://ashen-bead-studio.app-tencent.workbuddy.host/">
+<meta property="og:url" content="./">
 <meta property="og:title" content="Ashen图纸库 · 拼豆图纸生成器">
 <meta property="og:description" content="上传图片自动转拼豆图纸，支持自定义格数与配色，导出高清图纸 PNG。">
-<meta property="og:image" content="https://ashen-bead-studio.app-tencent.workbuddy.host/og-image.png">
+<meta property="og:image" content="og-image.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
@@ -6986,6 +6986,24 @@ if (!ios) document.documentElement.classList.add("standalone");
 })();
 init();
 })();</script>
+<script>
+/* PWA：注册 Service Worker（构建期注入，源码里没有这段） */
+(function(){
+  if (!('serviceWorker' in navigator)) return;
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('./sw.js' + location.search, { updateViaCache: 'none' }).then(function(reg){
+      reg.addEventListener('updatefound', function(){
+        var nw = reg.installing; if (!nw) return;
+        nw.addEventListener('statechange', function(){
+          if (nw.state === 'installed' && navigator.serviceWorker.controller){
+            try { if (window.toast) toast('新版本已就绪，重新打开生效'); } catch(e){}
+          }
+        });
+      });
+    }).catch(function(){});
+  });
+})();
+</script>
 </body>
 </html>
 
