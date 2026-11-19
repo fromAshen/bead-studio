@@ -3863,13 +3863,23 @@ function reorderLayer(from, insertAt){
 function blitInto(dst, src){
   for (var i = 0; i < src.length && i < dst.length; i++) if (src[i]) dst[i] = src[i];
 }
+/* v661：合并后按「显示顺序」重新编号 —— 不再把名字拼成「图层 1+图层 1 副本」。
+   显示是从上往下，所以从数组末尾往前数；图纸层保留「图纸层」这个名字不参与编号。 */
+function renumberLayers(){
+  var n = 1, i, L;
+  for (i = state.layers.length - 1; i >= 0; i--){
+    L = state.layers[i];
+    if (L.kind === "pattern") continue;
+    L.name = "图层 " + n;
+    n++;
+  }
+}
 function mergeDown(i){
   if (i <= 0){ toast("最下面的图层没有可合并的对象"); return; }
   var up = state.layers[i], lo = state.layers[i - 1];
   if (lo.locked){ toast("下层「" + lo.name + "」已锁定，先解锁再合并"); return; }
   beginChange();
   blitInto(lo.grid, up.grid);
-  lo.name = lo.kind === "pattern" ? lo.name : (lo.name + "+" + up.name);
   delete state.selLayers[up.id];
   state.layers.splice(i, 1);
   state.active = clamp(i - 1, 0, state.layers.length - 1);
@@ -3877,8 +3887,9 @@ function mergeDown(i){
   syncActiveGrid();
   
   endChange();
+  renumberLayers();
   renderGrid(); updateStats(); updatePaletteMarks(); renderLayerPanel();
-  toast("已向下合并到「" + lo.name + "」");
+  toast("已向下合并，图层已按顺序重编号");
 }
 /* 合并勾选的多个图层 → 合到其中最下面那层（保持上压下的叠放顺序） */
 function mergeSelected(){
@@ -3895,15 +3906,15 @@ function mergeSelected(){
     delete state.selLayers[state.layers[idxs[i]].id];
     state.layers.splice(idxs[i], 1);
   }
-  if (baseL.kind !== "pattern") baseL.name = "合并层";
   state.selLayers = {};
   state.active = clamp(base, 0, state.layers.length - 1);
   state.refActive = false;
   syncActiveGrid();
   
   endChange();
+  renumberLayers();
   renderGrid(); updateStats(); updatePaletteMarks(); renderLayerPanel();
-  toast("已合并 " + (names.length + 1) + " 个图层到「" + baseL.name + "」");
+  toast("已合并 " + (names.length + 1) + " 个图层，并按顺序重编号");
 }
 
 /* v205：名称紧跟缩略图 —— 行式布局里名称在左起第二位，不再被甩到行尾 */
@@ -6216,7 +6227,22 @@ function applyExposure(d, n){
   var lut = new Float32Array(256), i;
   for (i = 0; i < 256; i++){
     var t = i / 255;
-    var x = kS ? t + kS * t * (1 - t) * (2 * t - 1) : (t - 0.5) * cF + 0.5;
+    /* v660：暗部保护 —— S 曲线在 t<0.5 是「压暗」，会把头发这类暗部细节一起压没
+       （实测对比度 100 时头发平均亮度 64→41，发丝糊成一块）。
+       给压暗项加下限：暗部最多只压 DARK_GUARD 的比例，亮部照常提亮。 */
+    var xs;
+    if (kS){
+      var dS = kS * t * (1 - t) * (2 * t - 1);
+      if (dS < 0){
+        var gd = PHOTO.DARK_GUARD + (1 - PHOTO.DARK_GUARD) *
+                 clamp((t - PHOTO.DARK_T0) / (PHOTO.DARK_T1 - PHOTO.DARK_T0), 0, 1);
+        dS *= gd;
+      }
+      xs = t + dS;
+    } else {
+      xs = (t - 0.5) * cF + 0.5;
+    }
+    var x = xs;
     x = Math.max(0, Math.min(1, x)) * 255;
     if (gm) x = Math.pow(x / 255, gm) * 255;      /* gamma：正值抬暗保亮，负值整体压暗 */
     lut[i] = x < 0 ? 0 : (x > 255 ? 255 : x);
@@ -7091,7 +7117,10 @@ var PHOTO = {
   ZONE_T: 0.45,    /* 结构强度阈值：line/edge 超过它算结构区，必须保持锐利 */
   ZONE_R: 14.0,     /* 残差阈值：离最近豆 >5ΔE 说明色板覆盖不住，仍要抖 */
   ZONE_DILATE: 1,
-  ZONE_FLAT: 0.45,  /* 结构区外扩格数：保护眼线/下颌线的边缘不被平滑削细 */
+  ZONE_FLAT: 0.45,
+  DARK_GUARD: 0.30, /* v660：暗部（头发）允许保留的压暗比例，0=完全不动 */
+  DARK_T0: 0.20,    /* 保护起点：L≈51 以下完全保护 */
+  DARK_T1: 0.45,    /* 保护终点：L≈115 以上恢复正常 S 曲线 */  /* 结构区外扩格数：保护眼线/下颌线的边缘不被平滑削细 */
   GRAY_GUARD_DE: 5 /* v649：抖动选豆时的灰豆惩罚（ΔE 尺度，D 里的平方惩罚在动态选豆中无效） */
 };
 
@@ -9343,7 +9372,7 @@ function projectJSON(name){
 /* v151：标题带上版本号。改完代码后浏览器常拿着缓存的旧 HTML 继续跑，
    界面上却没有任何地方能看出当前跑的是哪一版，于是「明明改了却还是老样子」很难判断。
    标签页标题一眼可核对（也顺带出现在 Safari/Chrome 的分享标题里）。 */
-var APP_VER = "v655";
+var APP_VER = "v661";
 /* v480：带查询串跳转时保留原有参数。
    独立站点用 ?sharecode= 做访问控制，以前刷新/版本更新写成 "./?v=..." 会把 sharecode 丢掉，
    平台直接报「链接不完整」。这里把 v/r 覆盖掉、其余参数（含 sharecode）原样带回。 */
